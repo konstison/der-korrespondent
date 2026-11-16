@@ -1,7 +1,7 @@
 // Der Korrespondent – Service Worker
 // Ausgaben & Seiten: Netz zuerst (immer aktuell), offline aus dem Zwischenspeicher.
 // Schriften, Icons, Stylesheets: Zwischenspeicher zuerst (ändern sich selten).
-const VERSION = 'korrespondent-v4';
+const VERSION = 'korrespondent-v5';
 const SHELL = [
   './', './index.html', './manifest.json', './icon.svg',
   './assets/fonts.css', './assets/site.css', './assets/icon-192.png',

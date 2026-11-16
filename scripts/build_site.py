@@ -156,7 +156,7 @@ def fuss(rel, en=False):
                 "und anschließend automatisiert gegen diese Quellen geprüft. ")
     return f"""<footer class="site-footer">
   <strong>DER KORRESPONDENT</strong> · München · {text}
-  <a href="{rel}index.html#impressum">Impressum &amp; Datenschutz</a> · <a href="{rel}feed.xml">RSS</a>
+  <a href="{rel}index.html#impressum">Impressum &amp; Datenschutz</a> · <a href="{rel}index.html#feedback">Feedback</a> · <a href="{rel}feed.xml">RSS</a>
 </footer>
 <script>
 document.querySelectorAll('.history-anchor').forEach(function (el) {{
