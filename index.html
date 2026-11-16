@@ -1,23 +1,43 @@
 <!DOCTYPE html>
 <html lang="de" data-theme="day">
 <head>
-  <!-- PWA & App-Icon Konfiguration -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Der Korrespondent — Tagesblatt für Analyse, Geschichte & Weltspiegel</title>
+  <meta name="description" content="Analytische Essays zur Lage der Gegenwart – historisch geerdet, europäisch gedacht. Jeden Morgen neu, mit internationaler Presseschau.">
+
+  <!-- Vorschau beim Teilen (Messenger, Social Media) -->
+  <meta property="og:site_name" content="Der Korrespondent">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Der Korrespondent — Tagesblatt für Analyse, Geschichte & Weltspiegel">
+  <meta property="og:description" content="Analytische Essays zur Lage der Gegenwart – historisch geerdet, europäisch gedacht.">
+  <meta property="og:image" content="https://konstison.github.io/der-korrespondent/assets/og-image.png">
+  <meta property="og:url" content="https://konstison.github.io/der-korrespondent/">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- PWA & App-Icon -->
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="apple-touch-icon" href="./assets/icon-180.png">
+  <link rel="alternate" type="application/rss+xml" title="Der Korrespondent" href="./feed.xml">
   <meta name="theme-color" content="#1A1917">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Der Korrespondent">
-  
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Der Korrespondent — Tagesblatt für Analyse, Geschichte & Weltspiegel</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  
+  <meta name="apple-mobile-web-app-title" content="Korrespondent">
+
+  <!-- Schriften lokal (keine Verbindung zu Google) -->
+  <link rel="stylesheet" href="./assets/fonts.css">
+
+  <script>
+    // Einstellungen vor dem ersten Zeichnen anwenden (kein Aufflackern)
+    try {
+      if (localStorage.getItem('korrespondent.theme') === 'evening') document.documentElement.setAttribute('data-theme', 'evening');
+      var _s = [0.85, 0.92, 1, 1.1, 1.2, 1.32, 1.45, 1.6][parseInt(localStorage.getItem('korrespondent.textScale'), 10)];
+      if (_s) document.documentElement.style.setProperty('--text-scale', _s);
+    } catch (e) {}
+  </script>
+
   <style>
     :root {
       --text-scale: 1;
@@ -27,15 +47,16 @@
       --ink-primary: #1A1917;
       --ink-secondary: #4A4741;
       --ink-muted: #78736A;
-      --accent: #8B261D; /* Klassisches Zeitungs-Ochsenblut */
+      --accent: #8B261D; /* Zeitungs-Ochsenblut */
       --accent-soft: rgba(139, 38, 29, 0.12);
+      --ok: #3C6E47;
       --border-hairline: #DED8CC;
       --border-strong: #1A1917;
       --font-display: 'Cormorant Garamond', Georgia, serif;
       --font-body: 'Newsreader', Georgia, serif;
-      --font-ui: 'Inter', -apple-system, sans-serif;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --shell-max: 1080px;
     }
-
     [data-theme="evening"] {
       --bg-paper: #131518;
       --bg-card: #1B1E23;
@@ -45,12 +66,13 @@
       --ink-muted: #827D73;
       --accent: #D46A5E;
       --accent-soft: rgba(212, 106, 94, 0.16);
+      --ok: #7DB38A;
       --border-hairline: #2B2F36;
       --border-strong: #EAE5DC;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    html { -webkit-text-size-adjust: 100%; }
     body {
       background-color: var(--bg-paper);
       color: var(--ink-primary);
@@ -58,468 +80,365 @@
       line-height: 1.78;
       transition: background-color 0.35s ease, color 0.35s ease;
       -webkit-font-smoothing: antialiased;
+      padding-bottom: env(safe-area-inset-bottom);
     }
+    button { font: inherit; color: inherit; }
+    a { color: var(--accent); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-    /* Sticky Lese-Fortschritt & Kapitel-Kompass */
-    .reading-ribbon {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      background: var(--bg-paper);
-      border-bottom: 1px solid var(--border-hairline);
-      transform: translateY(-100%);
-      transition: transform 0.3s ease;
-      padding: 0.55rem 1.5rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: var(--font-ui);
-      font-size: 0.75rem;
-    }
-    .reading-ribbon.visible { transform: translateY(0); }
-    .ribbon-progress {
-      position: absolute;
-      bottom: -1px; left: 0;
-      height: 2px;
-      background: var(--accent);
-      width: 0%;
-      transition: width 0.1s linear;
-    }
-    .ribbon-chapter {
-      color: var(--accent);
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    /* Zeitungskopf (Masthead) */
-    header.masthead {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 1.5rem 1.5rem 1.25rem;
-      border-bottom: 3px double var(--border-strong);
-    }
-    .masthead-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: var(--font-ui);
-      font-size: 0.75rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--ink-muted);
-      padding-bottom: 0.85rem;
-      border-bottom: 1px solid var(--border-hairline);
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .theme-toggle, .archive-select {
+    /* ---------- Bedienelemente ---------- */
+    .ui-btn, .archive-select {
       background: transparent;
       border: 1px solid var(--border-hairline);
       color: var(--ink-primary);
-      padding: 0.3rem 0.75rem;
+      padding: 0.32rem 0.75rem;
       border-radius: 2px;
       font-family: var(--font-ui);
       font-size: 0.72rem;
       cursor: pointer;
       letter-spacing: 0.04em;
-      transition: all 0.2s;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
     }
-    .theme-toggle:hover, .archive-select:hover { border-color: var(--accent); color: var(--accent); }
+    .ui-btn:hover, .archive-select:hover { border-color: var(--accent); color: var(--accent); }
+    .ui-btn[aria-pressed="true"] { background: var(--ink-primary); color: var(--bg-paper); border-color: var(--ink-primary); }
     .archive-select { background: var(--bg-paper); }
 
-    /* Schriftgrößen-Steuerung */
     .text-size-control {
-      display: inline-flex;
-      align-items: stretch;
-      border: 1px solid var(--border-hairline);
-      border-radius: 2px;
-      font-family: var(--font-ui);
-      overflow: hidden;
+      display: inline-flex; align-items: stretch;
+      border: 1px solid var(--border-hairline); border-radius: 2px; overflow: hidden;
     }
     .text-size-control button {
-      background: transparent;
-      border: 0;
-      color: var(--ink-primary);
-      font-family: var(--font-display);
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0.15rem 0.6rem;
-      min-width: 2.2rem;
-      line-height: 1;
-      transition: color 0.2s, background 0.2s;
+      background: transparent; border: 0; color: var(--ink-primary);
+      font-family: var(--font-display); font-weight: 700; cursor: pointer;
+      padding: 0.15rem 0.6rem; min-width: 2.2rem; line-height: 1;
     }
     .text-size-control button:hover:not(:disabled) { color: var(--accent); background: var(--bg-card); }
     .text-size-control button:disabled { opacity: 0.35; cursor: default; }
     .text-size-control .ts-minus { font-size: 0.8rem; }
     .text-size-control .ts-plus { font-size: 1.1rem; }
     .text-size-control .ts-value {
-      font-family: var(--font-ui);
-      font-size: 0.68rem;
-      font-weight: 500;
-      min-width: 2.9rem;
-      border-left: 1px solid var(--border-hairline);
-      border-right: 1px solid var(--border-hairline);
+      font-family: var(--font-ui); font-size: 0.68rem; font-weight: 500; min-width: 2.9rem;
+      border-left: 1px solid var(--border-hairline); border-right: 1px solid var(--border-hairline);
       color: var(--ink-secondary);
     }
-    .reading-ribbon .text-size-control button { padding: 0.1rem 0.5rem; min-width: 1.9rem; }
-    .reading-ribbon .ribbon-right { display: flex; align-items: center; gap: 0.8rem; }
-    @media (max-width: 768px) {
-      .reading-ribbon #ribbonTime { display: none; }
-      .text-size-control button { min-width: 2.4rem; padding: 0.35rem 0.5rem; } /* größere Tippflächen */
+    .lang-switch { display: inline-flex; border: 1px solid var(--border-hairline); border-radius: 2px; overflow: hidden; }
+    .lang-switch button {
+      border: 0; background: transparent; cursor: pointer; padding: 0.3rem 0.55rem;
+      font-family: var(--font-ui); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; color: var(--ink-muted);
     }
+    .lang-switch button[aria-pressed="true"] { background: var(--ink-primary); color: var(--bg-paper); }
 
-    .masthead-title-wrap {
-      text-align: center;
-      padding: 1.6rem 0 1.2rem;
+    /* ---------- Mitlaufende Leiste ---------- */
+    .reading-ribbon {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: var(--bg-paper); border-bottom: 1px solid var(--border-hairline);
+      transform: translateY(-100%); transition: transform 0.3s ease;
+      padding: 0.5rem 1.25rem; padding-top: max(0.5rem, env(safe-area-inset-top));
+      display: flex; justify-content: space-between; align-items: center; gap: 0.8rem;
+      font-family: var(--font-ui); font-size: 0.75rem;
     }
+    .reading-ribbon.visible { transform: translateY(0); }
+    .ribbon-left { display: flex; gap: 0.7rem; align-items: baseline; min-width: 0; }
+    .ribbon-left span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #ribbonTitle { font-weight: 500; color: var(--ink-secondary); }
+    .ribbon-chapter { color: var(--accent); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.68rem; }
+    .ribbon-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+    .reading-ribbon .text-size-control button { padding: 0.1rem 0.5rem; min-width: 1.9rem; }
+    .ribbon-progress { position: absolute; bottom: -1px; left: 0; height: 2px; background: var(--accent); width: 0; transition: width 0.1s linear; }
+
+    /* ---------- Zeitungskopf ---------- */
+    header.masthead { max-width: 1180px; margin: 0 auto; padding: 1.4rem 1.5rem 0; padding-top: max(1.4rem, env(safe-area-inset-top)); }
+    .masthead-meta {
+      display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+      font-family: var(--font-ui); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-secondary);
+      padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-hairline);
+    }
+    .meta-group { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .masthead-title-wrap { text-align: center; padding: 1.6rem 0 1.2rem; }
     .masthead-kicker {
-      font-family: var(--font-ui);
-      font-size: 0.72rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 0.35rem;
-      font-weight: 600;
+      font-family: var(--font-ui); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 0.35rem; font-weight: 600;
     }
     h1.paper-name {
-      font-family: var(--font-display);
-      font-size: clamp(2.4rem, 5vw, 4rem);
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      line-height: 1;
-      text-transform: uppercase;
+      font-family: var(--font-display); font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 700;
+      letter-spacing: 0.08em; line-height: 1; text-transform: uppercase;
     }
-    .paper-motto {
-      font-family: var(--font-body);
-      font-style: italic;
-      color: var(--ink-secondary);
-      font-size: 1.02rem;
-      margin-top: 0.5rem;
-    }
+    .paper-motto { font-style: italic; color: var(--ink-secondary); font-size: 1.02rem; margin-top: 0.5rem; }
 
-    /* Artikel-Navigation (Die 5 Essays des Tages) */
+    /* ---------- Navigation der Tagesausgabe ---------- */
+    .edition-bar {
+      max-width: 1180px; margin: 0 auto; padding: 0 1.5rem;
+      border-top: 3px double var(--border-strong);
+    }
+    .edition-bar-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      padding: 0.6rem 0 0.2rem; font-family: var(--font-ui); font-size: 0.7rem; color: var(--ink-muted);
+      letter-spacing: 0.05em;
+    }
     nav.edition-nav {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 0.9rem 1.5rem;
-      border-bottom: 1px solid var(--border-hairline);
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0.85rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem;
+      padding: 0.5rem 0 0.9rem; border-bottom: 1px solid var(--border-hairline);
     }
     .nav-card {
-      text-align: left;
-      background: transparent;
-      border: 1px solid transparent;
-      border-left: 2px solid var(--border-hairline);
-      padding: 0.5rem 0.8rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      color: var(--ink-primary);
+      text-align: left; background: transparent; border: 0; border-left: 2px solid var(--border-hairline);
+      padding: 0.5rem 0.8rem; cursor: pointer; transition: background 0.2s; color: var(--ink-primary);
+      position: relative;
     }
     .nav-card:hover { background: var(--bg-card); }
-    .nav-card.active {
-      border-left: 3px solid var(--accent);
-      background: var(--bg-card);
+    .nav-card.active { border-left: 3px solid var(--accent); background: var(--bg-card); }
+    .nav-card.read .nav-card-title { color: var(--ink-muted); }
+    .nav-card.read::after {
+      content: "✓"; position: absolute; top: 0.4rem; right: 0.5rem; font-family: var(--font-ui); font-size: 0.7rem; color: var(--ok);
     }
     .nav-card-rubrik {
-      font-family: var(--font-ui);
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      font-weight: 600;
-      display: block;
-      margin-bottom: 0.2rem;
+      font-family: var(--font-ui); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--accent); font-weight: 600; display: block; margin-bottom: 0.2rem; padding-right: 0.8rem;
     }
-    .nav-card-title {
-      font-family: var(--font-display);
-      font-size: 1.08rem;
-      font-weight: 600;
-      line-height: 1.25;
-      display: block;
-    }
+    .nav-card-title { font-family: var(--font-display); font-size: 1.08rem; font-weight: 600; line-height: 1.25; display: block; }
 
-    /* Haupt-Layout mit Marginalien-Spalte */
+    /* ---------- Haupt-Layout ---------- */
     main.article-shell {
-      max-width: 1140px;
-      margin: 0 auto;
-      padding: 2.8rem 1.5rem 5rem;
-      display: grid;
-      grid-template-columns: 1fr minmax(auto, 68ch) 240px;
-      gap: 2.5rem;
-      align-items: start;
+      max-width: var(--shell-max); margin: 0 auto; padding: 2.6rem 1.5rem 5rem;
+      display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 3rem; align-items: start;
     }
-    .article-column { grid-column: 2; }
-    .margin-column {
-      grid-column: 3;
-      position: sticky;
-      top: 4.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
+    .article-column { max-width: 700px; width: 100%; justify-self: center; min-width: 0; }
+    .margin-column { position: sticky; top: 4.5rem; display: flex; flex-direction: column; gap: 1.5rem; }
 
-    @media (max-width: 1024px) {
-      main.article-shell {
-        grid-template-columns: 1fr;
-        max-width: 720px;
-      }
-      .article-column { grid-column: 1; }
-      .margin-column {
-        grid-column: 1;
-        position: static;
-        margin-top: 2rem;
-      }
-    }
-
-    /* Artikelkopf */
-    .article-header {
-      margin-bottom: 2.2rem;
-      padding-bottom: 1.6rem;
-      border-bottom: 1px solid var(--border-hairline);
-    }
+    .article-header { margin-bottom: 1.8rem; padding-bottom: 1.4rem; border-bottom: 1px solid var(--border-hairline); }
     .article-rubrik-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-family: var(--font-ui);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--accent);
-      font-weight: 600;
-      margin-bottom: 0.85rem;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.75rem;
+      font-family: var(--font-ui); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--accent); font-weight: 600; margin-bottom: 0.85rem;
+    }
+    .fc-badge {
+      color: var(--ok); text-transform: none; letter-spacing: 0.02em; font-weight: 500;
+      border: 1px solid currentColor; border-radius: 2px; padding: 0.05rem 0.45rem; font-size: 0.68rem;
+      background: transparent; cursor: pointer;
     }
     .article-headline {
-      font-family: var(--font-display);
-      font-size: clamp(2.1rem, 4vw, 3.15rem);
-      font-weight: 700;
-      line-height: 1.13;
-      letter-spacing: -0.01em;
-      margin-bottom: 1rem;
+      font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.1rem); font-weight: 700;
+      line-height: 1.13; letter-spacing: -0.01em; margin-bottom: 1rem;
     }
-    .article-subhead {
-      font-family: var(--font-body);
-      font-size: calc(1.22rem * var(--text-scale));
-      font-style: italic;
-      color: var(--ink-secondary);
-      line-height: 1.5;
+    .article-subhead { font-style: italic; color: var(--ink-secondary); line-height: 1.5; font-size: calc(1.22rem * var(--text-scale)); }
+    .article-tools { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.2rem; }
+    .lang-note {
+      font-family: var(--font-ui); font-size: 0.75rem; color: var(--ink-muted);
+      background: var(--bg-card); padding: 0.5rem 0.8rem; margin-bottom: 1.2rem;
     }
 
-    /* Bild-Figur */
-    figure.hero-figure {
-      margin: 0 0 2.2rem;
-      background: var(--bg-card);
-      padding: 0.85rem;
-      border: 1px solid var(--border-hairline);
+    .kurzfassung {
+      background: var(--bg-card); border-left: 3px solid var(--accent);
+      padding: 0.9rem 1.2rem; margin-bottom: 2rem; font-size: calc(1rem * var(--text-scale)); line-height: 1.6;
     }
-    figure.hero-figure img {
-      width: 100%;
-      max-height: 410px;
-      object-fit: cover;
-      display: block;
-      filter: contrast(1.03) sepia(0.06);
-    }
-    figure.hero-figure figcaption {
-      margin-top: 0.65rem;
-      font-family: var(--font-ui);
-      font-size: 0.74rem;
-      color: var(--ink-muted);
-      line-height: 1.45;
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
+    .kurzfassung strong { font-family: var(--font-ui); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+    .kurzfassung ul { margin: 0.4rem 0 0 1.1rem; }
+    .kurzfassung li { margin-bottom: 0.25rem; }
+    .thesis-inline { display: none; }
+
+    .hero-figure { margin: 0 0 2.2rem; }
+    .hero-figure img { width: 100%; height: auto; display: block; max-height: 460px; object-fit: cover; background: var(--bg-card); }
+    .hero-figure figcaption {
+      display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.45rem;
+      font-family: var(--font-ui); font-size: 0.7rem; color: var(--ink-muted);
     }
 
-    /* Essay-Typografie */
-    .essay-body {
-      font-size: calc(1.15rem * var(--text-scale));
-      color: var(--ink-primary);
-    }
-    .essay-body p {
-      margin-bottom: 1.45rem;
-      text-align: left;
-      hyphens: auto;
-    }
+    .essay-body { font-size: calc(1.15rem * var(--text-scale)); color: var(--ink-primary); }
+    .essay-body p { margin-bottom: 1.45rem; hyphens: auto; transition: background 0.3s; }
     .essay-body > p:first-of-type::first-letter {
-      font-family: var(--font-display);
-      font-size: 4.1rem;
-      font-weight: 700;
-      float: left;
-      line-height: 0.82;
-      padding-right: 0.65rem;
-      padding-top: 0.15rem;
-      color: var(--accent);
+      font-family: var(--font-display); font-size: 4.1rem; font-weight: 700; float: left; line-height: 0.82;
+      padding-right: 0.65rem; padding-top: 0.15rem; color: var(--accent);
     }
     .essay-body h2 {
-      font-family: var(--font-display);
-      font-size: calc(1.75rem * var(--text-scale));
-      font-weight: 700;
-      margin: 2.6rem 0 1rem;
-      padding-top: 1.2rem;
-      border-top: 1px solid var(--border-hairline);
-      line-height: 1.22;
+      font-family: var(--font-display); font-size: calc(1.75rem * var(--text-scale)); font-weight: 700;
+      margin: 2.6rem 0 1rem; padding-top: 1.2rem; border-top: 1px solid var(--border-hairline); line-height: 1.22;
+      scroll-margin-top: 4rem;
     }
     .essay-body blockquote {
-      margin: 2rem 0;
-      padding: 1.1rem 1.5rem;
-      border-left: 3px solid var(--accent);
-      background: var(--bg-card);
-      font-style: italic;
-      font-size: calc(1.18rem * var(--text-scale));
-      color: var(--ink-secondary);
+      margin: 2rem 0; padding: 1.1rem 1.5rem; border-left: 3px solid var(--accent); background: var(--bg-card);
+      font-style: italic; font-size: calc(1.18rem * var(--text-scale)); color: var(--ink-secondary);
     }
-
-    /* Historischer Resonanz-Anker */
+    .essay-body .reading-now { background: var(--accent-soft); box-shadow: 0 0 0 0.4rem var(--accent-soft); }
     .history-anchor {
-      border-bottom: 1.5px dotted var(--accent);
-      background: var(--accent-soft);
-      padding: 0 0.25rem;
-      cursor: pointer;
+      background: var(--accent-soft); border-bottom: 1px dotted var(--accent); cursor: pointer; padding: 0 0.1rem;
       transition: background 0.2s;
     }
     .history-anchor:hover { background: rgba(139, 38, 29, 0.22); }
 
-    /* Marginalien-Karten */
-    .margin-card {
-      border-top: 2px solid var(--border-strong);
-      padding-top: 0.8rem;
-      font-size: 0.88rem;
-    }
+    /* Randspalte */
+    .margin-card { border-top: 2px solid var(--border-strong); padding-top: 0.8rem; }
     .margin-label {
-      font-family: var(--font-ui);
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--accent);
-      font-weight: 600;
-      margin-bottom: 0.4rem;
-      display: block;
+      font-family: var(--font-ui); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); font-weight: 600; display: block; margin-bottom: 0.45rem;
     }
-    .margin-title {
-      font-family: var(--font-display);
-      font-size: 1.15rem;
-      font-weight: 700;
-      line-height: 1.25;
-      margin-bottom: 0.45rem;
-    }
-    .margin-text {
-      font-family: var(--font-body);
-      font-size: calc(0.92rem * var(--text-scale));
-      line-height: 1.55;
-      color: var(--ink-secondary);
-    }
+    .margin-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1.25; margin-bottom: 0.45rem; }
+    .margin-text { font-size: calc(0.92rem * var(--text-scale)); line-height: 1.55; color: var(--ink-secondary); }
 
-    /* Weltspiegel */
-    section.weltspiegel {
-      margin-top: 3.5rem;
-      padding: 2rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border-hairline);
-      border-top: 3px solid var(--border-strong);
+    /* Weltspiegel, Quellen, Prüfprotokoll */
+    section.weltspiegel { margin-top: 3.2rem; padding: 1.6rem; background: var(--bg-card); border-top: 3px double var(--border-strong); }
+    .weltspiegel-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.2rem; }
+    .weltspiegel-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; }
+    .weltspiegel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem; }
+    .press-item { border-top: 1px solid var(--border-hairline); padding-top: 0.7rem; }
+    .press-meta { font-family: var(--font-ui); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.35rem; }
+    .press-original { font-style: italic; font-size: 0.85rem; color: var(--ink-muted); margin-bottom: 0.3rem; line-height: 1.4; }
+    .press-summary { font-size: calc(0.95rem * var(--text-scale)); line-height: 1.55; color: var(--ink-secondary); margin-bottom: 0.6rem; }
+    .press-link { font-family: var(--font-ui); font-size: 0.72rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+    details.info-box {
+      margin-top: 1.4rem; font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-secondary);
+      border-top: 1px solid var(--border-hairline); padding-top: 0.9rem;
     }
-    .weltspiegel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 1.4rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--border-hairline);
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    .weltspiegel-title {
-      font-family: var(--font-display);
-      font-size: 1.65rem;
-      font-weight: 700;
-    }
-    .weltspiegel-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.25rem;
-    }
-    .press-item {
-      padding: 1rem;
-      background: var(--bg-paper);
-      border: 1px solid var(--border-hairline);
-    }
-    .press-meta {
-      font-family: var(--font-ui);
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-    }
-    .press-summary {
-      font-size: calc(0.95rem * var(--text-scale));
-      line-height: 1.55;
-      color: var(--ink-secondary);
-      margin-bottom: 0.6rem;
-    }
-    .press-link {
-      font-family: var(--font-ui);
-      font-size: 0.74rem;
-      color: var(--ink-primary);
-      text-decoration: none;
-      border-bottom: 1px solid var(--border-hairline);
-    }
-    .press-link:hover { border-color: var(--accent); color: var(--accent); }
+    details.info-box summary { cursor: pointer; font-weight: 600; }
+    details.info-box ul { margin: 0.8rem 0 0 1.2rem; line-height: 1.7; }
+    details.info-box a { color: inherit; }
+    .muted { color: var(--ink-muted); }
 
-    /* Footer & Kolophon */
+    .tag-row { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1.8rem; }
+    .tag {
+      font-family: var(--font-ui); font-size: 0.75rem; padding: 0.3rem 0.7rem; border: 1px solid var(--border-hairline);
+      text-decoration: none; color: var(--ink-secondary); background: var(--bg-card);
+    }
+    .tag:hover { border-color: var(--accent); color: var(--accent); }
+
+    .next-card {
+      display: block; width: 100%; text-align: left; margin-top: 2.8rem; padding: 1.2rem 1.4rem;
+      border: 1px solid var(--border-strong); background: transparent; cursor: pointer; color: var(--ink-primary);
+    }
+    .next-card:hover { background: var(--bg-card); }
+    .next-label { line-height: 1.5; font-family: var(--font-ui); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    .next-title { display: block; font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; line-height: 1.25; margin-top: 0.3rem; }
+    .swipe-hint { display: none; text-align: center; font-family: var(--font-ui); font-size: 0.7rem; color: var(--ink-muted); margin-top: 0.8rem; }
+
+    /* ---------- Bottom-Sheet & Dialoge ---------- */
+    .sheet-backdrop {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 900;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 901; max-height: 80vh; overflow-y: auto;
+      background: var(--bg-paper); border-top: 2px solid var(--border-strong);
+      padding: 1.4rem 1.4rem calc(1.6rem + env(safe-area-inset-bottom));
+      transform: translateY(105%); transition: transform 0.3s ease;
+      max-width: 640px; margin: 0 auto; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+    }
+    .sheet.open { transform: translateY(0); }
+    .sheet-handle { width: 2.5rem; height: 4px; background: var(--border-hairline); border-radius: 2px; margin: -0.4rem auto 1rem; }
+    .sheet h2 { font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; margin-bottom: 0.7rem; }
+    .sheet p { font-size: 1rem; line-height: 1.6; color: var(--ink-secondary); }
+    .sheet-actions { display: flex; justify-content: space-between; gap: 0.6rem; margin-top: 1.3rem; flex-wrap: wrap; }
+    .ressort-list { list-style: none; margin-top: 0.6rem; }
+    .ressort-list label {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.2rem; border-bottom: 1px solid var(--border-hairline);
+      font-family: var(--font-ui); font-size: 0.9rem; cursor: pointer;
+    }
+    .ressort-list input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
+    .ressort-list small { display: block; color: var(--ink-muted); font-size: 0.78rem; margin-top: 0.1rem; }
+
+    /* ---------- Fußzeile ---------- */
     footer.colophon {
-      max-width: 1140px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem 3.5rem;
-      border-top: 2px solid var(--border-strong);
-      font-family: var(--font-ui);
-      font-size: 0.78rem;
-      color: var(--ink-muted);
-      display: flex;
-      justify-content: space-between;
-      gap: 2rem;
-      flex-wrap: wrap;
+      max-width: 1180px; margin: 0 auto; padding: 2.2rem 1.5rem 3rem; border-top: 3px double var(--border-strong);
+      display: flex; justify-content: space-between; gap: 2rem; flex-wrap: wrap;
+      font-family: var(--font-ui); font-size: 0.75rem; color: var(--ink-secondary); line-height: 1.6;
+    }
+    .colophon-links { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+    .colophon a { color: var(--ink-secondary); }
+
+    .legal-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000;
+      justify-content: center; align-items: center; padding: 1.5rem;
+    }
+    .legal-modal.open { display: flex; }
+    .legal-inner {
+      background: var(--bg-paper); color: var(--ink-primary); max-width: 620px; width: 100%; max-height: 85vh; overflow-y: auto;
+      padding: 2.3rem; border: 2px solid var(--border-strong); position: relative; font-family: var(--font-ui); font-size: 0.85rem; line-height: 1.6;
+    }
+    .legal-inner h2 { font-family: var(--font-display); font-size: 1.8rem; margin-bottom: 1rem; }
+    .legal-inner h3 { font-family: var(--font-display); font-size: 1.3rem; margin: 1.4rem 0 0.4rem; }
+    .legal-inner p { margin-bottom: 0.8rem; }
+    .legal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.2rem; cursor: pointer; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom)); transform: translate(-50%, 150%);
+      background: var(--ink-primary); color: var(--bg-paper); font-family: var(--font-ui); font-size: 0.8rem;
+      padding: 0.6rem 1rem; border-radius: 2px; z-index: 1100; transition: transform 0.3s, opacity 0.3s;
+      opacity: 0; visibility: hidden;
+    }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+
+    /* ---------- Tablet ---------- */
+    @media (max-width: 1024px) {
+      main.article-shell { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
+      .margin-column { display: none; }
+      .thesis-inline { display: block; }
+      .swipe-hint { display: block; }
     }
 
-    /* Mobile Optimierung */
+    /* ---------- Smartphone ---------- */
     @media (max-width: 768px) {
-      header.masthead { padding: 1rem 1rem 0.85rem !important; }
-      .masthead-meta { font-size: 0.68rem !important; gap: 0.5rem !important; padding-bottom: 0.6rem !important; }
-      .masthead-title-wrap { padding: 1.0rem 0 0.8rem !important; }
-      h1.paper-name { font-size: 2.2rem !important; letter-spacing: 0.06em !important; }
-      .paper-motto { font-size: 0.85rem !important; }
-      nav.edition-nav { padding: 0.6rem 1rem !important; grid-template-columns: 1fr !important; gap: 0.5rem !important; }
-      .nav-card { padding: 0.45rem 0.6rem !important; }
-      main.article-shell { padding: 1.5rem 1rem 3rem !important; gap: 1.5rem !important; }
-      .article-header { margin-bottom: 1.5rem !important; padding-bottom: 1rem !important; }
-      .article-headline { font-size: 1.85rem !important; line-height: 1.18 !important; margin-bottom: 0.75rem !important; }
-      .article-subhead { font-size: calc(1.05rem * var(--text-scale)) !important; line-height: 1.45 !important; }
-      .essay-body { font-size: calc(1.05rem * var(--text-scale)) !important; }
-      .essay-body p { margin-bottom: 1.2rem !important; }
-      .essay-body h2 { font-size: calc(1.4rem * var(--text-scale)) !important; margin: 2rem 0 0.8rem !important; padding-top: 0.9rem !important; }
-      .essay-body blockquote { margin: 1.4rem 0 !important; padding: 0.8rem 1rem !important; font-size: calc(1.05rem * var(--text-scale)) !important; }
-      section.weltspiegel { margin-top: 2.5rem !important; padding: 1.2rem !important; }
-      .weltspiegel-grid { grid-template-columns: 1fr !important; }
+      header.masthead { padding: 0.9rem 1rem 0; padding-top: max(0.9rem, env(safe-area-inset-top)); }
+      .masthead-meta { font-size: 0.66rem; gap: 0.55rem; padding-bottom: 0.6rem; }
+      .meta-date { width: 100%; }
+      .meta-tagline { display: none; }
+      .masthead-meta .meta-controls { width: 100%; justify-content: space-between; }
+      .masthead-title-wrap { padding: 0.9rem 0 0.7rem; }
+      .masthead-kicker { font-size: 0.6rem; letter-spacing: 0.18em; }
+      h1.paper-name { font-size: 2.1rem; letter-spacing: 0.06em; }
+      .paper-motto { display: none; }
+      .text-size-control button { min-width: 2.4rem; padding: 0.35rem 0.5rem; }
+      .archive-select { max-width: 9.5rem; }
+      .edition-bar-head { font-size: 0.66rem; }
+
+      /* Essays als waagerecht wischbare Leiste statt Liste */
+      .edition-bar { padding: 0; }
+      .edition-bar-head { padding: 0.5rem 1rem 0.1rem; }
+      nav.edition-nav {
+        display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.6rem;
+        padding: 0.5rem 1rem 0.8rem; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+      }
+      nav.edition-nav::-webkit-scrollbar { display: none; }
+      .nav-card { flex: 0 0 72%; scroll-snap-align: start; background: var(--bg-card); border-left-width: 3px; }
+      .nav-card.active { border-left-color: var(--accent); box-shadow: inset 0 0 0 1px var(--border-hairline); }
+
+      main.article-shell { padding: 1.4rem 1.1rem 3rem; }
+      .article-header { margin-bottom: 1.3rem; padding-bottom: 1rem; }
+      .article-headline { font-size: 1.85rem; line-height: 1.18; margin-bottom: 0.7rem; }
+      .article-subhead { font-size: calc(1.05rem * var(--text-scale)); line-height: 1.45; }
+      .essay-body { font-size: calc(1.06rem * var(--text-scale)); }
+      .essay-body p { margin-bottom: 1.2rem; }
+      .essay-body h2 { font-size: calc(1.4rem * var(--text-scale)); margin: 2rem 0 0.8rem; padding-top: 0.9rem; }
+      .essay-body blockquote { margin: 1.4rem 0; padding: 0.8rem 1rem; font-size: calc(1.05rem * var(--text-scale)); }
+      section.weltspiegel { margin-top: 2.5rem; padding: 1.2rem; }
+      .weltspiegel-grid { grid-template-columns: 1fr; }
+      .reading-ribbon { padding-left: 0.9rem; padding-right: 0.9rem; }
+      .reading-ribbon #ribbonTitle, .reading-ribbon #ribbonTime { display: none; }
+      footer.colophon { flex-direction: column; }
+      .colophon-links { align-items: flex-start; }
+      .legal-inner { padding: 1.6rem; }
     }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
 <body>
 
-  <!-- Schwebender Kapitel-Kompass -->
+  <!-- Mitlaufende Leiste mit Kapitel und Fortschritt -->
   <div class="reading-ribbon" id="readingRibbon">
-    <span id="ribbonTitle" style="font-weight:500; color:var(--ink-secondary);">DER KORRESPONDENT</span>
-    <span class="ribbon-chapter" id="ribbonChapter">I. Auftakt</span>
+    <div class="ribbon-left">
+      <span id="ribbonTitle">DER KORRESPONDENT</span>
+      <span class="ribbon-chapter" id="ribbonChapter">I.</span>
+    </div>
     <div class="ribbon-right">
-      <span id="ribbonTime" style="color:var(--ink-muted);">14 Min. Lesezeit</span>
+      <span id="ribbonTime" class="muted"></span>
+      <button class="ui-btn audio-btn" type="button" onclick="toggleAudio()" aria-pressed="false" hidden>▶ <span data-i18n="listen">Vorlesen</span></button>
       <div class="text-size-control" role="group" aria-label="Schriftgröße">
-          <button type="button" class="ts-minus" onclick="changeTextSize(-1)" aria-label="Schrift verkleinern" title="Schrift verkleinern">A−</button>
-          <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen" title="Zurücksetzen">100 %</button>
-          <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern" title="Schrift vergrößern">A+</button>
-        </div>
+        <button type="button" class="ts-minus" onclick="changeTextSize(-1)" aria-label="Schrift verkleinern">A−</button>
+        <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen">100 %</button>
+        <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern">A+</button>
+      </div>
     </div>
     <div class="ribbon-progress" id="ribbonProgress"></div>
   </div>
@@ -527,363 +446,753 @@
   <!-- Zeitungskopf -->
   <header class="masthead">
     <div class="masthead-meta">
-      <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-        <span id="editionDate">Lade Ausgabe...</span>
-        <!-- ARCHIV DROPDOWN MENÜ -->
-        <select id="archiveSelect" class="archive-select" onchange="loadArchiveEdition(this.value)">
+      <div class="meta-group meta-date">
+        <span id="editionDate">Lade Ausgabe …</span>
+      </div>
+      <span class="meta-tagline" data-i18n="tagline">Deutschland · Europa · Weltspiegel</span>
+      <div class="meta-group meta-controls">
+        <select id="archiveSelect" class="archive-select" onchange="loadArchiveEdition(this.value)" aria-label="Ausgabe wählen">
           <option value="">Heutige Ausgabe</option>
         </select>
-      </div>
-      <span>Deutschland · Europa · Weltspiegel</span>
-      <div style="display:flex; gap:0.6rem; align-items:center;">
-        <div class="text-size-control" role="group" aria-label="Schriftgröße">
-          <button type="button" class="ts-minus" onclick="changeTextSize(-1)" aria-label="Schrift verkleinern" title="Schrift verkleinern">A−</button>
-          <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen" title="Zurücksetzen">100 %</button>
-          <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern" title="Schrift vergrößern">A+</button>
+        <div class="lang-switch" role="group" aria-label="Sprache">
+          <button type="button" data-lang="de" onclick="setLang('de')" aria-pressed="true">DE</button>
+          <button type="button" data-lang="en" onclick="setLang('en')" aria-pressed="false">EN</button>
         </div>
-        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Abendblatt-Modus</button>
+        <div class="text-size-control" role="group" aria-label="Schriftgröße">
+          <button type="button" class="ts-minus" onclick="changeTextSize(-1)" aria-label="Schrift verkleinern">A−</button>
+          <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen">100 %</button>
+          <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern">A+</button>
+        </div>
+        <button class="ui-btn" id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Abendmodus umschalten">☾</button>
       </div>
     </div>
     <div class="masthead-title-wrap">
-      <div class="masthead-kicker">Fünf Essays zur Lage der Gegenwart</div>
+      <div class="masthead-kicker" data-i18n="kicker">Essays zur Lage der Gegenwart</div>
       <h1 class="paper-name">Der Korrespondent</h1>
-      <p class="paper-motto">Analytischer Journalismus aus offenen Quellen — historisch geerdet, europäisch gedacht.</p>
+      <p class="paper-motto" data-i18n="motto">Analytischer Journalismus aus offenen Quellen — historisch geerdet, europäisch gedacht.</p>
     </div>
   </header>
 
-  <!-- Auswahl der 5 Tages-Essays -->
-  <nav class="edition-nav" id="editionNav" aria-label="Tagesausgabe"></nav>
+  <!-- Essays der Ausgabe -->
+  <div class="edition-bar">
+    <div class="edition-bar-head">
+      <span id="selectionInfo"></span>
+      <button class="ui-btn" type="button" onclick="openRessortSheet()" id="ressortButton">☰ <span data-i18n="chooseSections">Ressorts wählen</span></button>
+    </div>
+    <nav class="edition-nav" id="editionNav" aria-label="Essays dieser Ausgabe"></nav>
+  </div>
 
-  <!-- Haupt-Lesebereich -->
-  <main class="article-shell">
-    <article class="article-column" id="articleContainer"></article>
-
-    <!-- Marginalien & Historische Zeitkapsel -->
+  <!-- Lesebereich -->
+  <main class="article-shell" id="articleShell">
+    <article class="article-column" id="articleContainer" aria-live="polite"></article>
     <aside class="margin-column" id="marginContainer">
-      <div class="margin-card" id="historyCard">
-        <span class="margin-label">Historische Resonanz</span>
-        <div class="margin-title" id="historyTitle">Klicken Sie auf markierte Begriffe</div>
-        <p class="margin-text" id="historyText">
-          Jeder Essay verknüpft die aktuelle Nachrichtenlage mit historischen Strukturmustern. Wählen Sie eine hervorgehobene Stelle im Text, um die historische Parallele zu öffnen.
-        </p>
+      <div class="margin-card">
+        <span class="margin-label" data-i18n="historyLabel">Historische Resonanz</span>
+        <div class="margin-title" id="historyTitle"></div>
+        <p class="margin-text" id="historyText"></p>
       </div>
-      <div class="margin-card" id="thesisCard">
-        <span class="margin-label">Leitthese des Essays</span>
+      <div class="margin-card">
+        <span class="margin-label" data-i18n="thesisLabel">Leitthese des Essays</span>
         <p class="margin-text" id="thesisText"></p>
       </div>
     </aside>
   </main>
 
-  <!-- Kolophon & Impressum-Footer -->
   <footer class="colophon">
     <div style="max-width: 640px;">
-      <strong>Methodik & Transparenzhinweis:</strong> Alle Beiträge dieser Ausgabe werden auf Basis öffentlich zugänglicher Nachrichtenquellen und amtlicher Dokumente automatisiert recherchiert, historisch kontextualisiert und KI-gestützt verfasst. Im <em>Weltspiegel</em> werden Positionen internationaler Leitmedien eigenständig zusammengefasst und auf die Originalbeiträge verlinkt.
+      <strong data-i18n="methodTitle">Methodik & Transparenz:</strong>
+      <span data-i18n="methodText">Alle Essays werden auf Basis öffentlich zugänglicher Nachrichtenquellen KI-gestützt recherchiert und verfasst und anschließend automatisiert gegen diese Quellen auf Tatsachenbehauptungen geprüft. Der Weltspiegel fasst die Berichterstattung internationaler Medien eigenständig zusammen und verlinkt auf die Originalbeiträge.</span>
     </div>
-    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem;">
+    <div class="colophon-links">
       <span><strong>DER KORRESPONDENT</strong> · München</span>
-      <a href="javascript:void(0)" onclick="openLegalModal()" style="color: var(--ink-secondary); text-decoration: underline; cursor: pointer;">Impressum & Datenschutz</a>
+      <a href="archiv.html" data-i18n="archive">Archiv</a>
+      <a href="themen/index.html" data-i18n="dossiers">Dossiers</a>
+      <a href="feed.xml">RSS-Feed</a>
+      <a href="#impressum" onclick="openLegalModal(); return false;" data-i18n="legal">Impressum & Datenschutz</a>
     </div>
   </footer>
 
-  <!-- Impressum & Datenschutz Modal-Overlay -->
-  <div id="legalModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; padding:1.5rem;">
-    <div style="background:var(--bg-paper); color:var(--ink-primary); max-width:600px; width:100%; max-height:85vh; overflow-y:auto; padding:2.5rem; border:2px solid var(--border-strong); position:relative; font-family:var(--font-ui); font-size:0.85rem; line-height:1.6;">
-      <button onclick="closeLegalModal()" style="position:absolute; top:1rem; right:1rem; background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--ink-primary);">✕</button>
-      
-      <h2 style="font-family:var(--font-display); font-size:1.8rem; margin-bottom:1rem;">Impressum & Rechtliches</h2>
-      <p style="margin-bottom:1rem;"><strong>Angaben gemäß § 5 DDG / TMG:</strong><br>
+  <!-- Bottom-Sheet: historische Anker (Smartphone/Tablet) -->
+  <div class="sheet-backdrop" id="sheetBackdrop" onclick="closeSheets()"></div>
+  <div class="sheet" id="historySheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-handle"></div>
+    <span class="margin-label" data-i18n="historyLabel">Historische Resonanz</span>
+    <h2 id="sheetTitle"></h2>
+    <p id="sheetText"></p>
+    <div class="sheet-actions"><span></span><button class="ui-btn" type="button" onclick="closeSheets()" data-i18n="close">Schließen</button></div>
+  </div>
+
+  <!-- Bottom-Sheet: Ressortwahl -->
+  <div class="sheet" id="ressortSheet" role="dialog" aria-modal="true" aria-labelledby="ressortTitle">
+    <div class="sheet-handle"></div>
+    <h2 id="ressortTitle" data-i18n="chooseSections">Ressorts wählen</h2>
+    <p data-i18n="chooseHint">Jeden Morgen erscheint je ein Essay pro Ressort. Wählen Sie, welche Sie lesen möchten – die Auswahl wird auf diesem Gerät gespeichert.</p>
+    <ul class="ressort-list" id="ressortList"></ul>
+    <div class="sheet-actions">
+      <button class="ui-btn" type="button" onclick="resetRessorts()" data-i18n="editorsPick">Auswahl der Redaktion</button>
+      <button class="ui-btn" type="button" onclick="saveRessorts()" aria-pressed="true" data-i18n="apply">Übernehmen</button>
+    </div>
+  </div>
+
+  <!-- Impressum -->
+  <div class="legal-modal" id="legalModal" onclick="if (event.target === this) closeLegalModal()">
+    <div class="legal-inner" role="dialog" aria-modal="true" aria-labelledby="legalTitle">
+      <button class="legal-close" onclick="closeLegalModal()" aria-label="Schließen">✕</button>
+      <h2 id="legalTitle">Impressum & Rechtliches</h2>
+      <p><strong>Angaben gemäß § 5 DDG:</strong><br>
       Konstantin Peucker<br>
       München<br>
-      E-Mail: <a href="mailto:konstantin.radiologie@gmail.com" style="color:inherit;">konstantin.radiologie@gmail.com</a></p>
+      E-Mail: <a href="mailto:konstantin.radiologie@gmail.com">konstantin.radiologie@gmail.com</a></p>
 
-      <h3 style="font-family:var(--font-display); font-size:1.3rem; margin:1.5rem 0 0.5rem;">Haftung für Inhalte & Links</h3>
-      <p style="margin-bottom:1rem;">Als Diensteanbieter sind wir für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Für Inhalte externer Links (im Bereich <em>Weltspiegel</em>) übernehmen wir keine Gewähr; für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.</p>
+      <h3>Redaktionelle Verantwortung & Entstehung der Inhalte</h3>
+      <p>Die Essays werden automatisiert mit Hilfe künstlicher Intelligenz (Google Gemini) auf Basis öffentlich zugänglicher Nachrichtenquellen erstellt und anschließend automatisiert gegen diese Quellen geprüft. Trotz dieser Prüfung können Fehler nicht ausgeschlossen werden. Die verwendeten Quellen sind unter jedem Essay aufgeführt.</p>
 
-      <h3 style="font-family:var(--font-display); font-size:1.3rem; margin:1.5rem 0 0.5rem;">Datenschutz</h3>
-      <p style="margin-bottom:1rem;">Da diese Website über GitHub Pages gehostet wird, erfolgt die Bereitstellung rein statisch. Es werden keine Tracking-Cookies, Analysetools oder personenbezogenen Datenbanken unsererseits eingesetzt. Beim Aufruf der Seite erfasst GitHub Server-Logfiles im Rahmen der üblichen Hosting-Sicherheit.</p>
+      <h3>Haftung für Inhalte & Links</h3>
+      <p>Als Diensteanbieter sind wir für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Für Inhalte externer Links (insbesondere im <em>Weltspiegel</em> und in den Quellenangaben) übernehmen wir keine Gewähr; für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.</p>
 
-      <div style="margin-top:2rem; text-align:right;">
-        <button onclick="closeLegalModal()" class="theme-toggle" style="padding:0.5rem 1rem;">Schließen</button>
+      <h3>Datenschutz</h3>
+      <p>Diese Website wird über GitHub Pages statisch bereitgestellt. Beim Aufruf erfasst GitHub Server-Logfiles (u. a. IP-Adresse) im Rahmen der üblichen Hosting-Sicherheit. Wir setzen keine Cookies, keine Analyse- oder Tracking-Werkzeuge ein. Schriften werden lokal ausgeliefert.</p>
+      <p>Ihre Einstellungen (Schriftgröße, Abendmodus, Sprache, Ressortauswahl, gelesene Essays) werden ausschließlich lokal in Ihrem Browser gespeichert und nicht an uns übertragen.</p>
+      <p>Artikelbilder werden direkt von Wikimedia Commons (Wikimedia Foundation) geladen; dabei wird Ihre IP-Adresse an deren Server übermittelt. Die Vorlesefunktion nutzt die Sprachausgabe Ihres Geräts bzw. Browsers.</p>
+
+      <div style="margin-top:1.6rem; text-align:right;">
+        <button onclick="closeLegalModal()" class="ui-btn">Schließen</button>
       </div>
     </div>
   </div>
 
+  <div class="toast" id="toast" role="status"></div>
+
   <script>
-    const FALLBACK_EDITION = {
-      datum: "Freitag, 13. November 2026",
-      ausgabe_nr: "317",
-      artikel: [
-        {
-          id: "der-korrespondent-intro",
-          rubrik: "Zeitgeschehen",
-          lesezeit: "14 Min. Lesezeit",
-          titel: "Der Korrespondent: Die Architektonik des Wandels in einer vernetzten Welt",
-          untertitel: "Ein Blick auf die Mechanismen hinter moderner Synthese, datengetriebener Publizistik und historischer Einordnung.",
-          leitthese: "Wer offene Quellen präzise verdichtet, schafft einen verlässlichen Kompass jenseits tagesaktueller Aufregung.",
-          bild: null,
-          historische_anker: {
-            "enzyklopaedie": {
-              titel: "Aufklärung & Enzyklopädisten",
-              text: "Das Bestreben, Wissen systematisch zu ordnen und zugänglich zu machen, bildet das Fundament jeder aufgeklärten Öffentlichkeit."
-            }
-          },
-          inhalt_html: `
-            <p>In einer von schnellen Informationsströmen geprägten Medienlandschaft gewinnt die strukturierte Einordnung an Gewicht. Es geht nicht mehr primär um das bloße Aufählen von Fakten, sondern um deren intellektuelle Durchdringung.</p>
-            <h2>I. Das Bedürfnis nach Synthese</h2>
-            <p>Die <span class="history-anchor" onclick="showHistory('enzyklopaedie')">enzyklopädische Tradition</span> lehrt uns, dass Komplexität durch klare Kategorisierung beherrschbar wird. Moderne Analyseparadigmen setzen genau an diesem Punkt an.</p>
-            <blockquote>„Tiefe entsteht nicht durch das Volumen der Information, sondern durch die Güte ihrer Filterung.“</blockquote>
-            <h2>II. Ausblick</h2>
-            <p>Die Zukunft des Journalismus im Gewand von <em>Der Korrespondent</em> liegt in der Verbindung aus technologischer Effizienz und kompromissloser redaktioneller Sorgfalt.</p>
-          `,
-          weltspiegel: [
-            {
-              medium: "Neue Zürcher Zeitung (Schweiz)",
-              tenor: "Analytisch",
-              zusammenfassung: "Betont die Bedeutung redaktioneller Unabhängigkeit im digitalen Zeitalter.",
-              url: "https://www.nzz.ch"
-            }
-          ]
-        }
-      ]
-    };
-
-    let currentEdition = null;
-    let activeArticleIndex = 0;
-
-    async function initNewspaper() {
-      try {
-        const res = await fetch('data/ausgabe.json', { cache: 'no-store' });
-        if (!res.ok) throw new Error('Keine aktuelle Ausgabe');
-        currentEdition = await res.json();
-      } catch (e) {
-        currentEdition = FALLBACK_EDITION;
+    // =====================================================================
+    // Texte der Oberfläche (DE/EN)
+    // =====================================================================
+    const I18N = {
+      de: {
+        tagline: 'Deutschland · Europa · Weltspiegel', kicker: 'Essays zur Lage der Gegenwart',
+        motto: 'Analytischer Journalismus aus offenen Quellen — historisch geerdet, europäisch gedacht.',
+        chooseSections: 'Ressorts wählen', historyLabel: 'Historische Resonanz', thesisLabel: 'Leitthese des Essays',
+        methodTitle: 'Methodik & Transparenz:', archive: 'Archiv', dossiers: 'Dossiers', legal: 'Impressum & Datenschutz',
+        close: 'Schließen', editorsPick: 'Auswahl der Redaktion', apply: 'Übernehmen', listen: 'Vorlesen', pause: 'Pause',
+        methodText: 'Alle Essays werden auf Basis öffentlich zugänglicher Nachrichtenquellen KI-gestützt recherchiert und verfasst und anschließend automatisiert gegen diese Quellen auf Tatsachenbehauptungen geprüft. Der Weltspiegel fasst die Berichterstattung internationaler Medien eigenständig zusammen und verlinkt auf die Originalbeiträge.',
+        chooseHint: 'Jeden Morgen erscheint je ein Essay pro Ressort. Wählen Sie, welche Sie lesen möchten – die Auswahl wird auf diesem Gerät gespeichert.',
+        today: 'Heutige Ausgabe', edition: 'Ausgabe Nr.', archiveEd: 'Archiv', loading: 'Lade Ausgabe …',
+        selection: (n, t, own) => `${n} von ${t} Essays · ${own ? 'Ihre Auswahl' : 'Auswahl der Redaktion'}`,
+        inBrief: 'In Kürze', thesis: 'Leitthese', share: 'Teilen', linkCopied: 'Link kopiert',
+        factchecked: (q, k) => `✓ Faktengeprüft · ${q} Quellen` + (k ? ` · ${k} Korrektur${k === 1 ? '' : 'en'}` : ''),
+        notChecked: 'Nicht automatisch geprüft',
+        worldTitle: 'Der Weltspiegel', worldSub: 'Internationale Presseschau · eigene Zusammenfassung', toOriginal: 'Zum Originalbeitrag →',
+        sources: n => `Quellenbasis dieses Essays (${n})`, fulltext: '· Volltext ausgewertet',
+        fcLog: n => `Prüfprotokoll des Faktenchecks (${n})`, next: 'Nächster Essay', back: 'Zurück zum ersten Essay',
+        swipe: '← Wischen für den nächsten Essay →', noEn: 'This essay is only available in German.',
+        previously: 'Fortsetzung', readTime: 'Min. Lesezeit', minRead: 'Min. Lesezeit', staticPage: 'Einzelseite',
+        noAudio: 'Ihr Browser unterstützt keine Sprachausgabe.', audioPlaying: 'Vorlesen läuft …', sundayNote: 'Wochenrückblick'
+      },
+      en: {
+        tagline: 'Germany · Europe · World press', kicker: 'Essays on the state of the present',
+        motto: 'Analytical journalism from open sources — grounded in history, European in outlook.',
+        chooseSections: 'Choose sections', historyLabel: 'Historical context', thesisLabel: 'Central argument',
+        methodTitle: 'Method & transparency:', archive: 'Archive (German)', dossiers: 'Dossiers (German)', legal: 'Legal notice & privacy',
+        close: 'Close', editorsPick: "Editors' selection", apply: 'Apply', listen: 'Listen', pause: 'Pause',
+        methodText: 'All essays are researched and written with AI assistance on the basis of publicly available news sources and then automatically checked against those sources for factual claims. The world press review summarises international coverage in our own words and links to the originals.',
+        chooseHint: 'Every morning brings one essay per section. Choose which ones you want to read – your selection is stored on this device.',
+        today: "Today's edition", edition: 'Edition no.', archiveEd: 'Archive', loading: 'Loading edition …',
+        selection: (n, t, own) => `${n} of ${t} essays · ${own ? 'your selection' : "editors' selection"}`,
+        inBrief: 'In brief', thesis: 'Central argument', share: 'Share', linkCopied: 'Link copied',
+        factchecked: (q, k) => `✓ Fact-checked · ${q} sources` + (k ? ` · ${k} correction${k === 1 ? '' : 's'}` : ''),
+        notChecked: 'Not automatically checked',
+        worldTitle: 'World press review', worldSub: 'International coverage · our summary', toOriginal: 'Original article →',
+        sources: n => `Sources for this essay (${n})`, fulltext: '· full text analysed',
+        fcLog: n => `Fact-check log (${n})`, next: 'Next essay', back: 'Back to the first essay',
+        swipe: '← Swipe for the next essay →', noEn: 'This essay is only available in German.',
+        previously: 'Follow-up', readTime: 'min read', minRead: 'min read', staticPage: 'Single page',
+        noAudio: 'Your browser does not support speech output.', audioPlaying: 'Reading aloud …', sundayNote: 'Week in review'
       }
+    };
+    const DATE_EN_DAYS = { Montag: 'Monday', Dienstag: 'Tuesday', Mittwoch: 'Wednesday', Donnerstag: 'Thursday', Freitag: 'Friday', Samstag: 'Saturday', Sonntag: 'Sunday' };
+    const DATE_EN_MONTHS = { Januar: 'January', Februar: 'February', 'März': 'March', April: 'April', Mai: 'May', Juni: 'June', Juli: 'July', August: 'August', September: 'September', Oktober: 'October', November: 'November', Dezember: 'December' };
 
-      document.getElementById('editionDate').textContent =
-        `${currentEdition.datum} · Ausgabe Nr. ${currentEdition.ausgabe_nr}`;
+    // =====================================================================
+    // Zustand
+    // =====================================================================
+    const FALLBACK_EDITION = {
+      datum: '', ausgabe_nr: '', artikel: [{
+        id: 'hinweis', slug: 'hinweis', rubrik: 'Hinweis', lesezeit: '', titel: 'Die Ausgabe konnte nicht geladen werden',
+        untertitel: 'Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite neu.', leitthese: '',
+        inhalt_html: '<p>Sobald eine Verbindung besteht, erscheint hier die aktuelle Ausgabe des Korrespondenten.</p>',
+        weltspiegel: [], historische_anker: {}
+      }]
+    };
+    let todayEdition = null;     // heutige Ausgabe
+    let currentEdition = null;   // angezeigte Ausgabe (heute oder Archiv)
+    let visibleArticles = [];    // nach Ressortwahl gefiltert
+    let activeIndex = 0;
+    let lang = 'de';
 
-      renderNav();
-      renderArticle(0);
+    const store = {
+      get(k, fallback) { try { const v = localStorage.getItem('korrespondent.' + k); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
+      set(k, v) { try { localStorage.setItem('korrespondent.' + k, JSON.stringify(v)); } catch (e) {} }
+    };
+    const t = key => I18N[lang][key] ?? I18N.de[key] ?? key;
+    const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const isMobile = () => window.matchMedia('(max-width: 1024px)').matches;
+
+    // Sprachabhängige Felder eines Essays (Fallback: Deutsch)
+    function view(art) {
+      if (lang === 'en' && art.en && art.en.inhalt_html) return { ...art, ...art.en, _en: true };
+      return { ...art, _en: false };
+    }
+
+    // =====================================================================
+    // Laden
+    // =====================================================================
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(res.status);
+      return res.json();
+    }
+
+    async function init() {
+      lang = new URLSearchParams(location.search).get('lang') || store.get('lang', 'de');
+      if (!I18N[lang]) lang = 'de';
+      applyTextSize();
+      updateThemeButton();
+      setupAudio();
+
+      try { todayEdition = await fetchJson('data/ausgabe.json'); }
+      catch (e) { todayEdition = FALLBACK_EDITION; }
+      currentEdition = todayEdition;
+
+      // Deep Link: #/2026-11-16/slug
+      const route = parseRoute();
+      if (route && route.date && todayEdition.datum_iso && route.date !== todayEdition.datum_iso) {
+        try { currentEdition = await fetchJson(`data/archiv/${route.date}.json`); } catch (e) { currentEdition = todayEdition; }
+      }
+      applyLang(false);
+      showEdition(route ? route.slug : null);
+      loadArchiveIndex();
+      if (location.hash === '#impressum') openLegalModal();
+    }
+
+    function parseRoute() {
+      const m = location.hash.match(/^#\/(\d{4}-\d{2}-\d{2})(?:\/([\w-]+))?/);
+      return m ? { date: m[1], slug: m[2] || null } : null;
     }
 
     async function loadArchiveIndex() {
       try {
-        const res = await fetch('data/archiv/index.json', { cache: 'no-store' });
-        if (!res.ok) return;
-        const index = await res.json();
+        const index = await fetchJson('data/archiv/index.json');
         const select = document.getElementById('archiveSelect');
-        const heute = currentEdition && currentEdition.datum_iso;
-        index
-          .filter(e => e.datei !== `${heute}.json`)
-          .forEach(e => {
-            const opt = document.createElement('option');
-            opt.value = e.datei;
-            opt.textContent = `${e.datum} · Nr. ${e.ausgabe_nr}`;
-            select.appendChild(opt);
-          });
+        index.filter(e => e.datei !== `${todayEdition.datum_iso}.json`).forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.datei;
+          opt.textContent = `${formatDate(e.datum)} · Nr. ${e.ausgabe_nr}`;
+          select.appendChild(opt);
+        });
+        if (currentEdition !== todayEdition && currentEdition.datum_iso) select.value = `${currentEdition.datum_iso}.json`;
       } catch (e) { /* Archiv optional */ }
     }
 
-    async function loadArchiveEdition(filename) {
-      if (!filename) {
-        initNewspaper();
-        return;
-      }
+    async function loadArchiveEdition(file) {
+      stopAudio();
+      if (!file) { currentEdition = todayEdition; showEdition(null); return; }
       try {
-        const res = await fetch(`data/archiv/${filename}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Archivdatei nicht gefunden');
-        currentEdition = await res.json();
-        document.getElementById('editionDate').textContent =
-          `${currentEdition.datum} · Archiv (Nr. ${currentEdition.ausgabe_nr})`;
-        renderNav();
-        renderArticle(0);
+        currentEdition = await fetchJson(`data/archiv/${file}`);
+        showEdition(null);
       } catch (err) {
-        alert("Ausgabe konnte nicht aus dem Archiv geladen werden.");
+        toast('Ausgabe konnte nicht geladen werden.');
       }
+    }
+
+    // =====================================================================
+    // Ausgabe & Ressortwahl
+    // =====================================================================
+    function formatDate(d) {
+      if (lang !== 'en' || !d) return d || '';
+      return d.replace(/^(\w+), (\d+)\. (\S+) (\d+)$/, (_, wd, day, mon, y) => `${DATE_EN_DAYS[wd] || wd}, ${day} ${DATE_EN_MONTHS[mon] || mon} ${y}`);
+    }
+
+    function editionDateLine() {
+      const isToday = currentEdition === todayEdition;
+      const nr = currentEdition.ausgabe_nr ? ` · ${isToday ? t('edition') : t('archiveEd') + ' Nr.'} ${currentEdition.ausgabe_nr}` : '';
+      document.getElementById('editionDate').textContent = formatDate(currentEdition.datum) + nr;
+    }
+
+    function selectedRessorts() { return store.get('ressorts', null); } // null = Auswahl der Redaktion
+
+    function computeVisible() {
+      const all = currentEdition.artikel || [];
+      const own = selectedRessorts();
+      let list;
+      if (own && all.some(a => a.ressort)) {
+        list = all.filter(a => a.rueckblick || own.includes(a.ressort));
+      } else if (all.some(a => 'standard' in a)) {
+        list = all.filter(a => a.standard);
+      } else {
+        list = all; // ältere Ausgaben ohne Ressorts
+      }
+      return list.length ? list : all;
+    }
+
+    function showEdition(slug) {
+      editionDateLine();
+      visibleArticles = computeVisible();
+      let idx = 0;
+      if (slug) {
+        const inVisible = visibleArticles.findIndex(a => (a.slug || a.id) === slug);
+        if (inVisible >= 0) idx = inVisible;
+        else {
+          const art = (currentEdition.artikel || []).find(a => (a.slug || a.id) === slug);
+          if (art) { visibleArticles = [...visibleArticles, art]; idx = visibleArticles.length - 1; }
+        }
+      }
+      updateSelectionInfo();
+      renderArticle(idx, { scroll: false });
+    }
+
+    function updateSelectionInfo() {
+      const all = currentEdition.artikel || [];
+      const hasRessorts = all.some(a => a.ressort);
+      document.getElementById('ressortButton').hidden = !hasRessorts;
+      document.getElementById('selectionInfo').textContent =
+        hasRessorts ? t('selection')(visibleArticles.length, all.length, !!selectedRessorts()) : '';
     }
 
     function renderNav() {
+      const read = store.get('read', []);
       const nav = document.getElementById('editionNav');
-      nav.innerHTML = currentEdition.artikel.map((art, idx) => `
-        <button class="nav-card ${idx === activeArticleIndex ? 'active' : ''}" onclick="renderArticle(${idx})">
-          <span class="nav-card-rubrik">${idx + 1}. ${art.rubrik}</span>
-          <span class="nav-card-title">${art.titel}</span>
-        </button>
-      `).join('');
+      nav.innerHTML = visibleArticles.map((a, i) => {
+        const v = view(a);
+        const key = `${currentEdition.datum_iso || ''}/${a.slug || a.id}`;
+        return `<button class="nav-card ${i === activeIndex ? 'active' : ''} ${read.includes(key) ? 'read' : ''}" type="button" onclick="renderArticle(${i})" aria-current="${i === activeIndex}">
+          <span class="nav-card-rubrik">${esc(v.rubrik)}</span>
+          <span class="nav-card-title">${esc(v.titel)}</span>
+        </button>`;
+      }).join('');
+      const active = nav.querySelector('.nav-card.active');
+      if (active && isMobile()) nav.scrollTo({ left: active.offsetLeft - 16, behavior: 'smooth' });
     }
 
-    function renderArticle(index) {
-      activeArticleIndex = index;
+    function openRessortSheet() {
+      const all = currentEdition.artikel || [];
+      const own = selectedRessorts();
+      const chosen = own || all.filter(a => a.standard).map(a => a.ressort);
+      document.getElementById('ressortList').innerHTML = all.filter(a => a.ressort && !a.rueckblick).map(a => {
+        const v = view(a);
+        return `<li><label><input type="checkbox" value="${esc(a.ressort)}" ${chosen.includes(a.ressort) ? 'checked' : ''}>
+          <span>${esc(v.rubrik)}<small>${esc(v.titel)}</small></span></label></li>`;
+      }).join('');
+      openSheet('ressortSheet');
+    }
+
+    function saveRessorts() {
+      const ids = [...document.querySelectorAll('#ressortList input:checked')].map(i => i.value);
+      store.set('ressorts', ids.length ? ids : null);
+      closeSheets();
+      showEdition(null);
+    }
+
+    function resetRessorts() {
+      store.set('ressorts', null);
+      closeSheets();
+      showEdition(null);
+    }
+
+    // =====================================================================
+    // Essay darstellen
+    // =====================================================================
+    function renderArticle(index, opts = {}) {
+      stopAudio();
+      activeIndex = Math.max(0, Math.min(index, visibleArticles.length - 1));
+      const art = visibleArticles[activeIndex];
+      const v = view(art);
       renderNav();
-      const art = currentEdition.artikel[index];
 
-      document.getElementById('ribbonTitle').textContent = art.titel.split(':')[0];
-      document.getElementById('ribbonTime').textContent = art.lesezeit;
-      document.getElementById('thesisText').textContent = art.leitthese;
+      document.getElementById('ribbonTitle').textContent = (v.titel || '').split(':')[0];
+      const minutes = (art.lesezeit || '').match(/\d+/);
+      document.getElementById('ribbonTime').textContent = minutes ? `${minutes[0]} ${t('minRead')}` : '';
+      document.getElementById('thesisText').textContent = v.leitthese || '';
+      const anchors = v.historische_anker || {};
+      const firstKey = Object.keys(anchors)[0];
+      document.getElementById('historyTitle').textContent = firstKey ? anchors[firstKey].titel : '';
+      document.getElementById('historyText').textContent = firstKey ? anchors[firstKey].text : '';
 
-      const firstAnchorKey = art.historische_anker ? Object.keys(art.historische_anker)[0] : null;
-      if (firstAnchorKey) {
-        showHistory(firstAnchorKey);
-      }
+      // Faktencheck-Hinweis
+      const fc = art.faktencheck || {};
+      const nKorr = (fc.korrekturen || []).length;
+      const fcHtml = fc.geprueft
+        ? `<button class="fc-badge" type="button" onclick="document.getElementById('fcLog')?.setAttribute('open',''); document.getElementById('fcLog')?.scrollIntoView({behavior:'smooth'}) ">${esc(t('factchecked')(fc.quellen || (art.quellen || []).length, nKorr))}</button>`
+        : '';
 
       const figureHtml = art.bild && art.bild.url ? `
         <figure class="hero-figure">
-          <img src="${art.bild.url}" alt="${escapeAttr(art.bild.beschreibung || '')}" loading="lazy" onerror="this.closest('figure').remove()" />
-          <figcaption>
-            <span>${art.bild.beschreibung}</span>
-            <span>${art.bild.lizenz}</span>
-          </figcaption>
-        </figure>
-      ` : '';
+          <img src="${esc(art.bild.url)}" alt="${esc(art.bild.beschreibung || '')}" loading="lazy" onerror="this.closest('figure').remove()">
+          <figcaption><span>${esc(art.bild.beschreibung || '')}</span><span>${esc(art.bild.lizenz || '')}</span></figcaption>
+        </figure>` : '';
 
-      const weltspiegelHtml = art.weltspiegel && art.weltspiegel.length ? `
+      const kurz = v.kurzfassung && v.kurzfassung.length ? `
+        <div class="kurzfassung"><strong>${t('inBrief')}</strong><ul>${v.kurzfassung.map(k => `<li>${esc(k)}</li>`).join('')}</ul></div>` : '';
+      const thesisInline = v.leitthese ? `
+        <div class="kurzfassung thesis-inline"><strong>${t('thesis')}</strong><p style="margin-top:0.3rem">${esc(v.leitthese)}</p></div>` : '';
+
+      // Weltspiegel: Medium, URL, Originaltitel aus den deutschen Daten; Text ggf. übersetzt
+      const ws = art.weltspiegel || [];
+      const wsText = v._en ? (art.en.weltspiegel || []) : ws;
+      const weltspiegelHtml = ws.length ? `
         <section class="weltspiegel">
           <div class="weltspiegel-header">
-            <h3 class="weltspiegel-title">Der Weltspiegel</h3>
-            <span style="font-family:var(--font-ui); font-size:0.75rem; color:var(--ink-muted);">
-              Internationale Presseschau · Eigenständige Kurzzusammenfassung
-            </span>
+            <h3 class="weltspiegel-title">${t('worldTitle')}</h3>
+            <span class="muted" style="font-family:var(--font-ui); font-size:0.72rem;">${t('worldSub')}</span>
           </div>
           <div class="weltspiegel-grid">
-            ${art.weltspiegel.map(item => `
-              <div class="press-item">
-                <div class="press-meta">${item.medium} · ${item.tenor}</div>
-                ${item.titel_original ? `<p class="press-meta" style="font-style:italic;">„${item.titel_original}“</p>` : ''}
-                <p class="press-summary">${item.zusammenfassung}</p>
-                <a class="press-link" href="${item.url}" target="_blank" rel="noopener noreferrer">Zum Originalbeitrag &rarr;</a>
-              </div>
-            `).join('')}
+            ${ws.map((item, i) => {
+              const tx = wsText[i] || item;
+              return `<div class="press-item">
+                <div class="press-meta">${esc(item.medium)} · ${esc(tx.tenor || item.tenor)}</div>
+                ${item.titel_original ? `<p class="press-original">„${esc(item.titel_original)}“</p>` : ''}
+                <p class="press-summary">${esc(tx.zusammenfassung || item.zusammenfassung)}</p>
+                <a class="press-link" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${t('toOriginal')}</a>
+              </div>`;
+            }).join('')}
           </div>
-        </section>
-      ` : '';
+        </section>` : '';
 
       const quellenHtml = art.quellen && art.quellen.length ? `
-        <details class="quellen-liste" style="margin-top:2rem; font-family:var(--font-ui); font-size:0.8rem; color:var(--ink-secondary);">
-          <summary style="cursor:pointer; font-weight:600;">Quellenbasis dieses Essays (${art.quellen.length})</summary>
-          <ul style="margin:0.8rem 0 0 1.2rem; line-height:1.7;">
-            ${art.quellen.map(q => `<li>${q.medium} (${q.land}): <a href="${q.url}" target="_blank" rel="noopener noreferrer" style="color:inherit;">${q.titel}</a>${q.volltext ? ' <span style="color:var(--ink-muted);">· Volltext ausgewertet</span>' : ''}</li>`).join('')}
-          </ul>
+        <details class="info-box">
+          <summary>${t('sources')(art.quellen.length)}</summary>
+          <ul>${art.quellen.map(q => `<li>${esc(q.medium)} (${esc(q.land)}): <a href="${esc(q.url)}" target="_blank" rel="noopener noreferrer">${esc(q.titel)}</a>${q.volltext ? ` <span class="muted">${t('fulltext')}</span>` : ''}</li>`).join('')}</ul>
         </details>` : '';
+
+      const fcLogHtml = nKorr ? `
+        <details class="info-box" id="fcLog">
+          <summary>${t('fcLog')(nKorr)}</summary>
+          <ul>${fc.korrekturen.map(k => `<li><em>„${esc(k.stelle)}“</em> – ${esc(k.problem)} <strong>→</strong> ${esc(k.korrektur)}</li>`).join('')}</ul>
+        </details>` : '';
+
+      const tagsHtml = art.schlagworte && art.schlagworte.length ? `
+        <div class="tag-row">${art.schlagworte.map(s => `<a class="tag" href="themen/${slugify(s)}.html">${esc(s)}</a>`).join('')}</div>` : '';
+
+      const hasNext = activeIndex < visibleArticles.length - 1;
+      const nextArt = hasNext ? view(visibleArticles[activeIndex + 1]) : null;
+      const nextHtml = visibleArticles.length > 1 ? `
+        <button class="next-card" type="button" onclick="renderArticle(${hasNext ? activeIndex + 1 : 0})">
+          <span class="next-label">${hasNext ? t('next') + ' · ' + esc(nextArt.rubrik) : t('back')}</span>
+          <span class="next-title">${hasNext ? esc(nextArt.titel) : esc(view(visibleArticles[0]).titel)} →</span>
+        </button>
+        <p class="swipe-hint">${t('swipe')}</p>` : '';
+
+      const staticUrl = art.slug && currentEdition.datum_iso
+        ? `${lang === 'en' && v._en ? 'en' : 'artikel'}/${currentEdition.datum_iso}/${art.slug}.html` : null;
 
       document.getElementById('articleContainer').innerHTML = `
         <div class="article-header">
           <div class="article-rubrik-row">
-            <span>${art.rubrik}</span>
-            <span>&bull;</span>
-            <span>${art.lesezeit}</span>
+            <span>${esc(v.rubrik)}</span>
+            ${minutes ? `<span>&bull;</span><span>${minutes[0]} ${t('minRead')}</span>` : ''}
+            ${fcHtml}
           </div>
-          <h1 class="article-headline">${art.titel}</h1>
-          <p class="article-subhead">${art.untertitel}</p>
+          <h1 class="article-headline">${esc(v.titel)}</h1>
+          ${v.untertitel ? `<p class="article-subhead">${esc(v.untertitel)}</p>` : ''}
+          <div class="article-tools">
+            <button class="ui-btn audio-btn" type="button" onclick="toggleAudio()" aria-pressed="false" ${audioSupported ? '' : 'hidden'}>▶ <span>${t('listen')}</span></button>
+            ${staticUrl ? `<button class="ui-btn" type="button" onclick="shareArticle('${staticUrl}')">↗ ${t('share')}</button>` : ''}
+          </div>
         </div>
+        ${lang === 'en' && !v._en ? `<p class="lang-note">${t('noEn')}</p>` : ''}
+        ${kurz}
+        ${thesisInline}
         ${figureHtml}
-        <div class="essay-body">${art.inhalt_html}</div>
+        <div class="essay-body" lang="${v._en ? 'en' : 'de'}">${v.inhalt_html || ''}</div>
         ${weltspiegelHtml}
         ${quellenHtml}
+        ${fcLogHtml}
+        ${tagsHtml}
+        ${nextHtml}
       `;
+      updateAudioButtons();
 
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Lesestatus & Adresse
+      markRead(art);
+      if (currentEdition.datum_iso && art.slug) {
+        history.replaceState(null, '', `${location.pathname}${location.search}#/${currentEdition.datum_iso}/${art.slug}`);
+      }
+      if (opts.scroll !== false) {
+        const top = document.querySelector('.edition-bar').getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: isMobile() ? top : 0, behavior: 'smooth' });
+      }
     }
 
-    function escapeAttr(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    function slugify(s) {
+      return String(s).toLowerCase().replace(/ß/g, 'ss').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+        .normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70).replace(/-+$/, '') || 'essay';
     }
 
-    function showHistory(key) {
-      const art = currentEdition.artikel[activeArticleIndex];
-      if (!art.historische_anker || !art.historische_anker[key]) return;
-      const entry = art.historische_anker[key];
-      document.getElementById('historyTitle').textContent = entry.titel;
-      document.getElementById('historyText').textContent = entry.text;
+    function markRead(art) {
+      const key = `${currentEdition.datum_iso || ''}/${art.slug || art.id}`;
+      const read = store.get('read', []);
+      if (!read.includes(key)) {
+        read.push(key);
+        store.set('read', read.slice(-300));
+      }
     }
 
-    function toggleTheme(skipSave) {
-      const html = document.documentElement;
-      const btn = document.getElementById('themeToggle');
-      if (html.getAttribute('data-theme') === 'day') {
-        html.setAttribute('data-theme', 'evening');
-        btn.textContent = 'Tagesausgabe-Modus';
+    async function shareArticle(path) {
+      const url = new URL(path, location.href).href;
+      const art = view(visibleArticles[activeIndex]);
+      if (navigator.share) {
+        try { await navigator.share({ title: art.titel, text: art.untertitel || '', url }); } catch (e) {}
       } else {
-        html.setAttribute('data-theme', 'day');
-        btn.textContent = 'Abendblatt-Modus';
-      }
-      if (skipSave !== true) {
-        try { localStorage.setItem('korrespondent.theme', html.getAttribute('data-theme')); } catch (e) {}
+        try { await navigator.clipboard.writeText(url); toast(t('linkCopied')); } catch (e) { prompt('Link:', url); }
       }
     }
 
-    // --- Schriftgröße (stufenweise, nur Lesetext; wird im Browser gemerkt) ---
+    // =====================================================================
+    // Historische Anker: Randspalte (Desktop) oder Bottom-Sheet (Smartphone)
+    // =====================================================================
+    function showHistory(key) {
+      const v = view(visibleArticles[activeIndex]);
+      const entry = (v.historische_anker || {})[key];
+      if (!entry) return;
+      if (isMobile()) {
+        document.getElementById('sheetTitle').textContent = entry.titel;
+        document.getElementById('sheetText').textContent = entry.text;
+        openSheet('historySheet');
+      } else {
+        document.getElementById('historyTitle').textContent = entry.titel;
+        document.getElementById('historyText').textContent = entry.text;
+      }
+    }
+
+    function openSheet(id) {
+      closeSheets();
+      document.getElementById('sheetBackdrop').classList.add('open');
+      const sheet = document.getElementById(id);
+      sheet.classList.add('open');
+      setTimeout(() => sheet.querySelector('button, input')?.focus({ preventScroll: true }), 50);
+    }
+    function closeSheets() {
+      document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open'));
+      document.getElementById('sheetBackdrop').classList.remove('open');
+    }
+
+    // =====================================================================
+    // Wischen & Tastatur
+    // =====================================================================
+    (function setupSwipe() {
+      let x0 = null, y0 = null, t0 = 0;
+      const shell = document.getElementById('articleShell');
+      shell.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) return;
+        x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+      }, { passive: true });
+      shell.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Date.now() - t0 > 700 || Math.abs(dx) < 80 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+        if (window.getSelection && String(window.getSelection())) return;
+        if (dx < 0 && activeIndex < visibleArticles.length - 1) renderArticle(activeIndex + 1);
+        if (dx > 0 && activeIndex > 0) renderArticle(activeIndex - 1);
+      }, { passive: true });
+    })();
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { closeSheets(); closeLegalModal(); return; }
+      if (e.target.closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'ArrowRight' && activeIndex < visibleArticles.length - 1) renderArticle(activeIndex + 1);
+      if (e.key === 'ArrowLeft' && activeIndex > 0) renderArticle(activeIndex - 1);
+    });
+
+    window.addEventListener('hashchange', () => {
+      if (location.hash === '#impressum') { openLegalModal(); return; }
+      const r = parseRoute();
+      if (!r) return;
+      const i = visibleArticles.findIndex(a => a.slug === r.slug);
+      if (i >= 0 && i !== activeIndex) renderArticle(i);
+    });
+
+    // =====================================================================
+    // Sprache
+    // =====================================================================
+    function setLang(l) {
+      lang = l;
+      store.set('lang', l);
+      applyLang(true);
+    }
+    function applyLang(rerender) {
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const val = I18N[lang][el.dataset.i18n];
+        if (typeof val === 'string') el.textContent = val;
+      });
+      document.querySelectorAll('.lang-switch button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
+      document.querySelector('#archiveSelect option[value=""]').textContent = t('today');
+      if (rerender && currentEdition) {
+        editionDateLine();
+        updateSelectionInfo();
+        renderArticle(activeIndex, { scroll: false });
+      }
+    }
+
+    // =====================================================================
+    // Schriftgröße (stufenweise, nur Lesetext; im Browser gespeichert)
+    // =====================================================================
     const TEXT_SCALES = [0.85, 0.92, 1, 1.1, 1.2, 1.32, 1.45, 1.6];
     const TEXT_SCALE_DEFAULT = 2;
-    let textScaleIndex = TEXT_SCALE_DEFAULT;
+    let textScaleIndex = (() => {
+      const s = store.get('textScale', TEXT_SCALE_DEFAULT);
+      return Number.isInteger(s) && s >= 0 && s < TEXT_SCALES.length ? s : TEXT_SCALE_DEFAULT;
+    })();
 
     function applyTextSize() {
       const scale = TEXT_SCALES[textScaleIndex];
       document.documentElement.style.setProperty('--text-scale', scale);
-      document.querySelectorAll('.text-size-control').forEach(group => {
-        group.querySelector('.ts-value').textContent = `${Math.round(scale * 100)} %`;
-        group.querySelector('.ts-minus').disabled = textScaleIndex === 0;
-        group.querySelector('.ts-plus').disabled = textScaleIndex === TEXT_SCALES.length - 1;
+      document.querySelectorAll('.text-size-control').forEach(g => {
+        g.querySelector('.ts-value').textContent = `${Math.round(scale * 100)} %`;
+        g.querySelector('.ts-minus').disabled = textScaleIndex === 0;
+        g.querySelector('.ts-plus').disabled = textScaleIndex === TEXT_SCALES.length - 1;
       });
     }
 
     function changeTextSize(step) {
-      // Leseposition halten: Anteil des Fortschritts merken und nach dem Umbruch wiederherstellen
       const docH = document.documentElement.scrollHeight - window.innerHeight;
       const ratio = docH > 0 ? window.scrollY / docH : 0;
-      textScaleIndex = step === 0
-        ? TEXT_SCALE_DEFAULT
-        : Math.min(TEXT_SCALES.length - 1, Math.max(0, textScaleIndex + step));
+      textScaleIndex = step === 0 ? TEXT_SCALE_DEFAULT : Math.min(TEXT_SCALES.length - 1, Math.max(0, textScaleIndex + step));
       applyTextSize();
-      try { localStorage.setItem('korrespondent.textScale', String(textScaleIndex)); } catch (e) {}
+      store.set('textScale', textScaleIndex);
       requestAnimationFrame(() => {
         const newH = document.documentElement.scrollHeight - window.innerHeight;
         if (window.scrollY > 0) window.scrollTo(0, ratio * newH);
       });
     }
 
-    function restorePreferences() {
-      try {
-        const saved = parseInt(localStorage.getItem('korrespondent.textScale'), 10);
-        if (!Number.isNaN(saved) && saved >= 0 && saved < TEXT_SCALES.length) textScaleIndex = saved;
-        const theme = localStorage.getItem('korrespondent.theme');
-        if (theme === 'evening') toggleTheme(true);
-      } catch (e) {}
-      applyTextSize();
+    // =====================================================================
+    // Abendmodus
+    // =====================================================================
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.setAttribute('data-theme', html.getAttribute('data-theme') === 'day' ? 'evening' : 'day');
+      try { localStorage.setItem('korrespondent.theme', html.getAttribute('data-theme')); } catch (e) {}
+      updateThemeButton();
+    }
+    function updateThemeButton() {
+      const evening = document.documentElement.getAttribute('data-theme') === 'evening';
+      const b = document.getElementById('themeToggle');
+      b.textContent = evening ? '☀' : '☾';
+      b.title = evening ? 'Tagesmodus' : 'Abendmodus';
     }
 
-    function openLegalModal() { document.getElementById('legalModal').style.display = 'flex'; }
-    function closeLegalModal() { document.getElementById('legalModal').style.display = 'none'; }
+    // =====================================================================
+    // Vorlesen (Sprachausgabe des Geräts)
+    // =====================================================================
+    const synth = window.speechSynthesis;
+    const audioSupported = !!(synth && window.SpeechSynthesisUtterance);
+    let audioState = 'idle'; // idle | playing | paused
+    let audioQueue = [], audioPos = 0;
 
+    function setupAudio() {
+      if (!audioSupported) return;
+      document.querySelectorAll('.audio-btn').forEach(b => b.hidden = false);
+      synth.getVoices();
+      if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = () => synth.getVoices();
+    }
+
+    function pickVoice(code) {
+      const voices = synth.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith(code));
+      const prefer = ['natural', 'neural', 'premium', 'enhanced', 'google', 'anna', 'petra', 'markus', 'daniel', 'serena'];
+      for (const p of prefer) {
+        const v = voices.find(v => v.name.toLowerCase().includes(p));
+        if (v) return v;
+      }
+      return voices[0] || null;
+    }
+
+    function toggleAudio() {
+      if (!audioSupported) { toast(t('noAudio')); return; }
+      if (audioState === 'playing') { synth.pause(); audioState = 'paused'; updateAudioButtons(); return; }
+      if (audioState === 'paused') { synth.resume(); audioState = 'playing'; updateAudioButtons(); return; }
+      const body = document.querySelector('.essay-body');
+      const head = document.querySelector('.article-headline');
+      const sub = document.querySelector('.article-subhead');
+      audioQueue = [head, sub, ...body.querySelectorAll('h2, p, blockquote')].filter(Boolean);
+      audioPos = 0;
+      audioState = 'playing';
+      updateAudioButtons();
+      speakNext();
+    }
+
+    function speakNext() {
+      document.querySelectorAll('.reading-now').forEach(el => el.classList.remove('reading-now'));
+      if (audioState === 'idle') return;
+      if (audioPos >= audioQueue.length) { stopAudio(); return; }
+      const el = audioQueue[audioPos++];
+      const text = el.textContent.trim();
+      if (!text) { speakNext(); return; }
+      el.classList.add('reading-now');
+      const rect = el.getBoundingClientRect();
+      if (rect.top < 60 || rect.bottom > window.innerHeight - 40) window.scrollTo({ top: window.scrollY + rect.top - 90, behavior: 'smooth' });
+      const u = new SpeechSynthesisUtterance(text);
+      const code = (document.querySelector('.essay-body')?.getAttribute('lang') || 'de');
+      u.lang = code === 'en' ? 'en-GB' : 'de-DE';
+      const voice = pickVoice(code);
+      if (voice) u.voice = voice;
+      u.rate = 0.98;
+      u.onend = () => { if (audioState !== 'idle') speakNext(); };
+      u.onerror = () => { if (audioState !== 'idle') speakNext(); };
+      synth.speak(u);
+    }
+
+    function stopAudio() {
+      if (!audioSupported) return;
+      audioState = 'idle';
+      synth.cancel();
+      document.querySelectorAll('.reading-now').forEach(el => el.classList.remove('reading-now'));
+      updateAudioButtons();
+    }
+
+    function updateAudioButtons() {
+      document.querySelectorAll('.audio-btn').forEach(b => {
+        const playing = audioState === 'playing';
+        b.setAttribute('aria-pressed', audioState !== 'idle');
+        b.innerHTML = playing ? `❚❚ <span>${t('pause')}</span>` : `▶ <span>${t('listen')}</span>`;
+      });
+    }
+    window.addEventListener('pagehide', stopAudio);
+
+    // =====================================================================
+    // Sonstiges
+    // =====================================================================
+    function openLegalModal() { document.getElementById('legalModal').classList.add('open'); }
+    function closeLegalModal() {
+      document.getElementById('legalModal').classList.remove('open');
+      if (location.hash === '#impressum') history.replaceState(null, '', location.pathname + location.search);
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    // Lesefortschritt & aktuelles Kapitel
     window.addEventListener('scroll', () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = docHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0;
-
-      const ribbon = document.getElementById('readingRibbon');
-      if (scrollTop > 260) ribbon.classList.add('visible');
-      else ribbon.classList.remove('visible');
-
+      const article = document.getElementById('articleContainer');
+      const start = article.offsetTop, end = start + article.offsetHeight - window.innerHeight;
+      const progress = end > start ? Math.min(100, Math.max(0, (window.scrollY - start) / (end - start) * 100)) : 0;
+      document.getElementById('readingRibbon').classList.toggle('visible', window.scrollY > start + 120);
       document.getElementById('ribbonProgress').style.width = `${progress}%`;
+      let chap = '';
+      document.querySelectorAll('.essay-body h2').forEach(h => { if (h.getBoundingClientRect().top < 140) chap = h.textContent; });
+      document.getElementById('ribbonChapter').textContent = chap;
+    }, { passive: true });
 
-      const headings = document.querySelectorAll('.essay-body h2');
-      let currentChap = 'I. Auftakt';
-      headings.forEach(h => {
-        if (h.getBoundingClientRect().top < 180) currentChap = h.textContent;
-      });
-      document.getElementById('ribbonChapter').textContent = currentChap;
-    });
+    init();
 
-    restorePreferences();
-    initNewspaper().then(loadArchiveIndex);
-  </script>
-
-  <!-- Service Worker Registrierung für PWA -->
-  <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .catch((err) => console.log('SW Registrierung fehlgeschlagen:', err));
-      });
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
     }
   </script>
 </body>

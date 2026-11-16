@@ -2,14 +2,14 @@
 Der Korrespondent – Generator der Tagesausgabe.
 
 Ablauf:
-  1. RSS-Feeds aller Quellen lesen (deutsch + international)
-  2. Gemini wählt 5 Themen und ordnet jedem Thema echte Meldungen zu
-  3. Für frei zugängliche Quellen wird der Artikel-Volltext geladen (robots.txt wird respektiert,
-     Bezahlangebote werden nur mit Titel + Teaser genutzt)
-  4. Gemini schreibt je Thema einen Essay – NUR auf Basis der zugeordneten Meldungen
-  5. Der Weltspiegel wird im Code aus den echten Meldungen gebaut:
-     Medium, Land und URL stammen immer aus dem Feed, nie vom Modell.
-  6. Ausgabe nach data/ausgabe.json, Kopie ins Archiv, Archiv-Index aktualisieren
+  1. RSS-Feeds lesen (Politik, Wirtschaft, Wissenschaft, Kultur; deutsch + international)
+  2. Chefredaktion: je Ressort ein Thema, echte Meldungen zuordnen, Gewicht vergeben
+  3. Volltexte frei zugänglicher Quellen laden (robots.txt wird respektiert)
+  4. Essay schreiben – nur auf Basis der Quellen, mit Bezug auf frühere Essays
+  5. Faktencheck: zweiter Durchlauf prüft jede Behauptung gegen die Quellen und korrigiert
+  6. Englische Fassung
+  7. Sonntags zusätzlich: Wochenrückblick aus dem Archiv
+  8. Ausgabe + Archiv schreiben (statische Seiten baut scripts/build_site.py)
 """
 
 import json
@@ -23,7 +23,8 @@ import urllib.request
 import urllib.robotparser
 from html.parser import HTMLParser
 import xml.etree.ElementTree as ET
-from datetime import datetime
+import unicodedata
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 sys.stdout.reconfigure(line_buffering=True)
@@ -40,27 +41,59 @@ WOERTER_PRO_MINUTE = 220
 # volltext=True: frei zugängliches Angebot, Artikeltext darf geladen werden.
 # volltext=False: Bezahl-/Meter-Angebot – nur Titel + Teaser aus dem Feed.
 RSS_FEEDS = [
-    # Deutschland
+    # --- Nachrichten / Politik: Deutschland
     {"name": "Tagesschau", "land": "Deutschland", "url": "https://www.tagesschau.de/xml/rss2/", "volltext": True},
     {"name": "Deutschlandfunk", "land": "Deutschland", "url": "https://www.deutschlandfunk.de/nachrichten-100.rss", "volltext": True},
     {"name": "FAZ", "land": "Deutschland", "url": "https://www.faz.net/rss/aktuell/", "volltext": False},
     {"name": "Süddeutsche Zeitung", "land": "Deutschland", "url": "https://rss.sueddeutsche.de/rss/Topthemen", "volltext": False},
     {"name": "Die Zeit", "land": "Deutschland", "url": "https://newsfeed.zeit.de/index", "volltext": False},
     {"name": "Der Spiegel", "land": "Deutschland", "url": "https://www.spiegel.de/schlagzeilen/index.rss", "volltext": False},
-    # Schweiz / Österreich
+    # --- Schweiz / Österreich
     {"name": "Neue Zürcher Zeitung", "land": "Schweiz", "url": "https://www.nzz.ch/recent.rss", "volltext": False},
     {"name": "Der Standard", "land": "Österreich", "url": "https://www.derstandard.at/rss", "volltext": True},
-    # Europa
+    # --- Europa / Welt
     {"name": "Le Monde", "land": "Frankreich", "url": "https://www.lemonde.fr/international/rss_full.xml", "volltext": False},
     {"name": "El País", "land": "Spanien", "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/english.elpais.com/portada", "volltext": False},
     {"name": "Politico Europe", "land": "EU / Brüssel", "url": "https://www.politico.eu/feed/", "volltext": True},
     {"name": "Euronews", "land": "EU / Frankreich", "url": "https://www.euronews.com/rss", "volltext": True},
     {"name": "The Guardian", "land": "Großbritannien", "url": "https://www.theguardian.com/world/rss", "volltext": True},
     {"name": "BBC News", "land": "Großbritannien", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "volltext": True},
-    # Welt
     {"name": "The New York Times", "land": "USA", "url": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "volltext": False},
     {"name": "Al Jazeera", "land": "Katar", "url": "https://www.aljazeera.com/xml/rss/all.xml", "volltext": True},
+    # --- Wirtschaft
+    {"name": "Tagesschau Wirtschaft", "land": "Deutschland", "url": "https://www.tagesschau.de/wirtschaft/index~rss2.xml", "volltext": True, "anzeige": "Tagesschau"},
+    {"name": "FAZ Wirtschaft", "land": "Deutschland", "url": "https://www.faz.net/rss/aktuell/wirtschaft/", "volltext": False, "anzeige": "FAZ"},
+    {"name": "Guardian Business", "land": "Großbritannien", "url": "https://www.theguardian.com/business/rss", "volltext": True, "anzeige": "The Guardian"},
+    {"name": "BBC Business", "land": "Großbritannien", "url": "https://feeds.bbci.co.uk/news/business/rss.xml", "volltext": True, "anzeige": "BBC News"},
+    # --- Wissenschaft, Medizin, Technik
+    {"name": "Tagesschau Wissen", "land": "Deutschland", "url": "https://www.tagesschau.de/wissen/index~rss2.xml", "volltext": True, "anzeige": "Tagesschau"},
+    {"name": "Spektrum der Wissenschaft", "land": "Deutschland", "url": "https://www.spektrum.de/alias/rss/spektrum-de-rss-feed/996406", "volltext": False},
+    {"name": "Deutsches Ärzteblatt", "land": "Deutschland", "url": "https://www.aerzteblatt.de/rss/news.asp", "volltext": False},
+    {"name": "Spiegel Wissenschaft", "land": "Deutschland", "url": "https://www.spiegel.de/wissenschaft/index.rss", "volltext": False, "anzeige": "Der Spiegel"},
+    {"name": "Guardian Science", "land": "Großbritannien", "url": "https://www.theguardian.com/science/rss", "volltext": True, "anzeige": "The Guardian"},
+    {"name": "BBC Science", "land": "Großbritannien", "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", "volltext": True, "anzeige": "BBC News"},
+    {"name": "BBC Technology", "land": "Großbritannien", "url": "https://feeds.bbci.co.uk/news/technology/rss.xml", "volltext": True, "anzeige": "BBC News"},
+    {"name": "heise online", "land": "Deutschland", "url": "https://www.heise.de/rss/heise-atom.xml", "volltext": False},
+    # --- Kultur / Feuilleton / Gesellschaft
+    {"name": "FAZ Feuilleton", "land": "Deutschland", "url": "https://www.faz.net/rss/aktuell/feuilleton/", "volltext": False, "anzeige": "FAZ"},
+    {"name": "NZZ Feuilleton", "land": "Schweiz", "url": "https://www.nzz.ch/feuilleton.rss", "volltext": False, "anzeige": "Neue Zürcher Zeitung"},
+    {"name": "Spiegel Kultur", "land": "Deutschland", "url": "https://www.spiegel.de/kultur/index.rss", "volltext": False, "anzeige": "Der Spiegel"},
+    {"name": "Guardian Culture", "land": "Großbritannien", "url": "https://www.theguardian.com/culture/rss", "volltext": True, "anzeige": "The Guardian"},
 ]
+
+# Die acht Ressorts der Ausgabe. "standard": Anzahl der Essays, die ohne persönliche Auswahl gezeigt werden.
+RESSORTS = [
+    {"id": "deutschland", "name": "Deutschland", "hinweis": "Innenpolitik, Bundesregierung, Länder, Gesellschaftspolitik in Deutschland"},
+    {"id": "europa", "name": "Europa", "hinweis": "EU, europäische Nachbarn, Schweiz/Österreich, europäische Institutionen"},
+    {"id": "welt", "name": "Weltpolitik", "hinweis": "Internationale Beziehungen außerhalb Europas, Großmächte, Diplomatie"},
+    {"id": "sicherheit", "name": "Sicherheit & Verteidigung", "hinweis": "Kriege, Konflikte, Militär, Geheimdienste, Rüstungskontrolle"},
+    {"id": "wirtschaft", "name": "Wirtschaft", "hinweis": "Konjunktur, Unternehmen, Handel, Finanzen, Energie, Arbeitsmarkt"},
+    {"id": "wissenschaft", "name": "Wissenschaft & Medizin", "hinweis": "Forschung, Medizin, Gesundheitswesen, Klima, Umwelt"},
+    {"id": "technik", "name": "Technologie & Digitales", "hinweis": "KI, Digitalpolitik, Plattformen, Datenschutz, Raumfahrt"},
+    {"id": "feuilleton", "name": "Feuilleton & Gesellschaft", "hinweis": "Kultur, Literatur, Ideen, Medien, Bildung, gesellschaftliche Debatten"},
+]
+STANDARD_ANZAHL = 5
+
 DEUTSCHSPRACHIG = {"Deutschland", "Schweiz", "Österreich"}
 USER_AGENT = "Mozilla/5.0 (compatible; DerKorrespondent/1.2; +https://konstison.github.io/der-korrespondent/)"
 VOLLTEXT_MAX_ZEICHEN = 6000
@@ -78,7 +111,7 @@ def _clean(s):
     return re.sub(r"\s+", " ", TAG_RE.sub(" ", s or "")).strip()
 
 
-def fetch_rss_headlines(limit_per_feed=10):
+def fetch_rss_headlines(limit_per_feed=8):
     print("1. Lese RSS-Feeds...")
     items = []
     for feed in RSS_FEEDS:
@@ -104,7 +137,7 @@ def fetch_rss_headlines(limit_per_feed=10):
                     link = atom_link.attrib.get("href", "") if atom_link is not None else ""
                 if title and link.startswith("http"):
                     items.append({
-                        "medium": feed["name"],
+                        "medium": feed.get("anzeige", feed["name"]),
                         "land": feed["land"],
                         "volltext_erlaubt": feed.get("volltext", False),
                         "titel": title,
@@ -223,22 +256,22 @@ def _gemini():
     return _client
 
 
-def call_gemini_json(prompt):
+def call_gemini_json(prompt, versuche=4):
     """Ruft Gemini mit JSON-Antwort auf; fängt Limits/Überlastung ab und parst das JSON."""
     from google.genai import types
     config = types.GenerateContentConfig(response_mime_type="application/json")
     last_err = None
-    for attempt in range(1, 5):
+    for attempt in range(1, versuche + 1):
         try:
             resp = _gemini().models.generate_content(model=MODEL_NAME, contents=prompt, config=config)
             return json.loads(resp.text)
         except json.JSONDecodeError as ex:
             last_err = ex
-            print(f"   Ungültiges JSON (Versuch {attempt}/4), wiederhole...")
+            print(f"   Ungültiges JSON (Versuch {attempt}/{versuche}), wiederhole...")
         except Exception as ex:
             last_err = ex
             msg = str(ex)
-            print(f"   API-Hinweis (Versuch {attempt}/4): {msg[:150]}")
+            print(f"   API-Hinweis (Versuch {attempt}/{versuche}): {msg[:150]}")
             if any(k in msg for k in ("429", "503", "500", "ResourceExhausted", "UNAVAILABLE", "INTERNAL")):
                 time.sleep(attempt * 20)
                 continue
@@ -246,83 +279,195 @@ def call_gemini_json(prompt):
     raise RuntimeError(f"Gemini dauerhaft nicht erreichbar: {last_err}")
 
 
-def choose_topics(items):
-    print("2. Wähle 5 Themen...")
+def pause():
+    time.sleep(PAUSE_SEKUNDEN)
+
+
+PAUSE_SEKUNDEN = int(os.environ.get("PAUSE_SEKUNDEN", "6"))
+
+# ---------------------------------------------------------------------------
+# Archiv-Gedächtnis
+# ---------------------------------------------------------------------------
+def slugify(text, maxlen=70):
+    text = text.lower().replace("ß", "ss").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue")
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text[:maxlen].rstrip("-") or "essay"
+
+
+def artikel_pfad(datum_iso, slug):
+    return f"artikel/{datum_iso}/{slug}.html"
+
+
+def lade_archiv(tage, bis_ausschliesslich):
+    """Liefert Essays der letzten `tage` Tage vor dem Stichtag: [{datum, titel, leitthese, schlagworte, pfad}]"""
+    essays = []
+    for n in range(1, tage + 1):
+        d = (bis_ausschliesslich - timedelta(days=n)).strftime("%Y-%m-%d")
+        pfad = os.path.join(ARCHIV_DIR, f"{d}.json")
+        if not os.path.exists(pfad):
+            continue
+        try:
+            with open(pfad, encoding="utf-8") as f:
+                ausgabe = json.load(f)
+        except Exception:
+            continue
+        for a in ausgabe.get("artikel", []):
+            slug = a.get("slug") or slugify(a.get("titel", ""))
+            essays.append({
+                "ref": f"{d}/{slug}",
+                "datum": d,
+                "ressort": a.get("rubrik", ""),
+                "titel": a.get("titel", ""),
+                "leitthese": a.get("leitthese", ""),
+                "schlagworte": a.get("schlagworte", []),
+                "pfad": artikel_pfad(d, slug),
+            })
+    return essays
+
+
+# ---------------------------------------------------------------------------
+# Chefredaktion: Themenwahl je Ressort
+# ---------------------------------------------------------------------------
+def choose_topics(items, frueher):
+    print("2. Chefredaktion: Themen je Ressort...")
     katalog = [
-        {"i": idx, "medium": it["medium"], "land": it["land"], "titel": it["titel"], "kurztext": it["kurztext"][:160]}
+        {"i": idx, "medium": it["medium"], "land": it["land"], "titel": it["titel"], "kurztext": it["kurztext"][:150]}
         for idx, it in enumerate(items)
     ]
+    ressorts = [{"id": r["id"], "name": r["name"], "umfasst": r["hinweis"]} for r in RESSORTS]
+    gedaechtnis = [{"ref": e["ref"], "titel": e["titel"], "schlagworte": e["schlagworte"]} for e in frueher]
     prompt = f"""
 Du bist Chefredakteur einer anspruchsvollen deutschsprachigen Tageszeitung (Stil: NZZ / FAZ).
-Unten steht der vollständige Meldungskatalog des heutigen Morgens, jede Meldung mit Index "i".
+Unten stehen die Ressorts, der vollständige Meldungskatalog des heutigen Morgens (jede Meldung mit Index "i")
+und die Essays der vergangenen Tage.
 
-Wähle exakt 5 Themen, die für den deutschsprachigen Leserraum heute am bedeutendsten sind.
-Kriterien:
-- Gewicht und Tragweite vor Aufregung; keine Boulevard- oder Sportthemen.
-- Bevorzuge Themen, über die mehrere Medien aus verschiedenen Ländern berichten.
-- Ordne jedem Thema, wenn irgend möglich, auch Meldungen nicht-deutschsprachiger Medien zu
-  (z. B. Guardian, BBC, Le Monde, El País, NYT, Al Jazeera, Politico).
-- Die 5 Themen sollen sich inhaltlich klar unterscheiden.
-- Ordne jedem Thema ALLE Meldungen aus dem Katalog zu, die es tatsächlich behandeln (mindestens 2, ideal 4–10).
-  Verwende nur Indizes, die im Katalog existieren.
+AUFGABE: Wähle für JEDES Ressort genau ein Thema für einen analytischen Essay.
+- Gewicht und Tragweite vor Aufregung; keine Boulevard-, Promi- oder Sportthemen.
+- Jedes Thema muss klar in sein Ressort passen; die acht Themen müssen sich deutlich voneinander unterscheiden.
+  Ein Kriegsthema gehört nach "sicherheit", nicht zusätzlich nach "welt" oder "europa".
+- Wiederhole kein Thema, das in den letzten Tagen schon einen Essay hatte – es sei denn, es gibt eine
+  wesentliche neue Entwicklung. Dann setze "bezug" auf die ref des früheren Essays.
+- Ordne jedem Thema ALLE Meldungen zu, die es tatsächlich behandeln (mindestens 2, ideal 4–10),
+  wenn möglich auch nicht-deutschsprachige Medien. Nur Indizes, die im Katalog existieren.
+- Findet sich für ein Ressort heute kein tragfähiges Thema mit mindestens 2 Meldungen, setze "thema": null.
+- "gewicht": 1–10, wie bedeutend das Thema heute für deutschsprachige Leser ist.
+- "schlagworte": 2–3 kurze, wiederverwendbare Dossier-Begriffe (z. B. "Ukraine-Krieg", "EU-Asylpolitik",
+  "Künstliche Intelligenz"). Verwende dieselben Begriffe wie in früheren Essays, wenn das Thema dasselbe ist.
 
-Antworte als JSON-Array mit 5 Objekten:
-[{{"rubrik": "Geopolitik & Europa", "arbeitstitel": "...", "bild_suchbegriff": "englischer Suchbegriff für Wikimedia Commons", "quellen": [0, 7, 23]}}]
+Antworte als JSON-Objekt:
+{{"themen": [{{"ressort": "deutschland", "thema": "Arbeitstitel", "gewicht": 8, "bild_suchbegriff": "englischer Suchbegriff für Wikimedia Commons", "schlagworte": ["..."], "bezug": null, "quellen": [0, 7, 23]}}]}}
+
+Ressorts:
+{json.dumps(ressorts, ensure_ascii=False)}
+
+Essays der vergangenen Tage:
+{json.dumps(gedaechtnis, ensure_ascii=False)}
 
 Meldungskatalog:
 {json.dumps(katalog, ensure_ascii=False)}
 """
-    topics = call_gemini_json(prompt)
-    if isinstance(topics, dict):  # manche Modelle verpacken das Array
-        topics = next((v for v in topics.values() if isinstance(v, list)), [])
-    return topics[:5]
+    data = call_gemini_json(prompt)
+    themen = data.get("themen", []) if isinstance(data, dict) else data
+    gueltig, gesehen = [], set()
+    ressort_ids = {r["id"] for r in RESSORTS}
+    for t in themen or []:
+        if not isinstance(t, dict) or not t.get("thema") or t.get("ressort") not in ressort_ids:
+            continue
+        if t["ressort"] in gesehen:
+            continue
+        gesehen.add(t["ressort"])
+        gueltig.append(t)
+    return gueltig
 
 
-def write_essay(topic, sources):
+# ---------------------------------------------------------------------------
+# Essay
+# ---------------------------------------------------------------------------
+def _quellen_fuer_prompt(sources, mit_volltext=True):
     quellen = []
     for n, s in enumerate(sources):
         q = {"q": n, "medium": s["medium"], "land": s["land"], "titel": s["titel"], "kurztext": s["kurztext"]}
-        if s.get("volltext"):
+        if mit_volltext and s.get("volltext"):
             q["volltext"] = s["volltext"]
         quellen.append(q)
-    prompt = f"""
-Du bist ein erfahrener, nüchterner Leitartikler einer europäischen Qualitätszeitung (Stil: NZZ / FAZ).
-Schreibe einen tiefgründigen, sachlich fundierten Essay zum Thema: {topic.get('arbeitstitel')}
+    return quellen
 
-UMFANG: mindestens 1.500 Wörter Fließtext (ohne Überschriften). Das ist eine harte Vorgabe.
 
-STIL UND INHALT:
-- Elegant, präzise, ohne Pathos, ohne Metaphern-Kaskaden, ohne reißerischen Jargon.
-- Faktentreue: Aktuelle Fakten (Namen, Zahlen, Ereignisse von heute) NUR aus den beiliegenden Quellen.
-  Quellen mit "volltext" sind deine Hauptgrundlage; bei den übrigen kennst du nur Titel und Teaser –
-  leite daraus keine Details ab, die dort nicht stehen.
-  Erfinde keine Zitate, Zahlen, Personen oder Ämter. Wo die Quellen etwas offen lassen, benenne es als offen.
-- Allgemein bekannte historische Tatsachen darfst du zur Einordnung heranziehen.
-- Gliederung: 4 Kapitel mit römischen Überschriften (<h2>I. ...</h2>), dazwischen <p>, optional ein <blockquote>
-  (nur als hervorgehobene eigene These, nicht als erfundenes Zitat).
-- Genau 2 historische oder begriffliche Anker im Text, Format:
-  <span class="history-anchor" onclick="showHistory('anker1')">Begriff</span> bzw. 'anker2'.
-
-WELTSPIEGEL:
-- Wähle 3–4 der beiliegenden Quellen, JEDES MEDIUM HÖCHSTENS EINMAL, und fasse zusammen, wie das jeweilige
-  Medium das Thema darstellt. Bevorzuge nicht-deutschsprachige Medien; der Weltspiegel soll den Blick von außen zeigen.
-- Verweise ausschließlich über die Quellennummer "q". Nenne keine anderen Medien und keine URLs.
-
+ESSAY_FORMAT = """
 Antworte als reines JSON:
-{{
+{
   "titel": "Klassische Doppelpunkt-Schlagzeile",
   "untertitel": "Sachlicher Untertitel in einem Satz",
   "leitthese": "Zentrale These in 2 Sätzen.",
-  "historische_anker": {{
-    "anker1": {{"titel": "...", "text": "Sachliche Erläuterung in 3 Sätzen."}},
-    "anker2": {{"titel": "...", "text": "..."}}
-  }},
+  "kurzfassung": ["Kernaussage 1", "Kernaussage 2", "Kernaussage 3"],
+  "historische_anker": {
+    "anker1": {"titel": "...", "text": "Sachliche Erläuterung in 3 Sätzen."},
+    "anker2": {"titel": "...", "text": "..."}
+  },
   "inhalt_html": "<p>...</p><h2>I. ...</h2><p>...</p>",
-  "weltspiegel": [{{"q": 0, "tenor": "Analytisch", "zusammenfassung": "2–3 Sätze in eigenen Worten."}}]
-}}
+  "weltspiegel": [{"q": 0, "tenor": "Analytisch", "zusammenfassung": "2–3 Sätze in eigenen Worten."}]
+}
+"""
 
+STIL = """
+STIL UND INHALT:
+- Elegant, präzise, ohne Pathos, ohne Metaphern-Kaskaden, ohne reißerischen Jargon.
+- Gliederung: 4 Kapitel mit römischen Überschriften (<h2>I. ...</h2>), dazwischen <p>, optional ein <blockquote>
+  (nur als hervorgehobene eigene These, nie als erfundenes Zitat).
+- Genau 2 historische oder begriffliche Anker im Text, Format:
+  <span class="history-anchor" onclick="showHistory('anker1')">Begriff</span> bzw. 'anker2'.
+- "kurzfassung": 3 Sätze, die den Essay für eilige Leser zusammenfassen.
+"""
+
+
+def write_essay(topic, ressort_name, sources, bezug):
+    bezug_text = ""
+    if bezug:
+        bezug_text = f"""
+FRÜHERER ESSAY ZUM THEMA (vom {bezug['datum']}): "{bezug['titel']}" – Leitthese: {bezug['leitthese']}
+Knüpfe an diesen Essay an: Was ist seither neu? Erwähne ihn einmal ausdrücklich mit einem Link:
+<a href="{bezug['pfad']}">wie wir am {datum_de_kurz(bezug['datum'])} schrieben</a> (Formulierung frei).
+"""
+    prompt = f"""
+Du bist ein erfahrener, nüchterner Autor einer europäischen Qualitätszeitung (Stil: NZZ / FAZ),
+Ressort „{ressort_name}“. Schreibe einen tiefgründigen, sachlich fundierten Essay zum Thema: {topic.get('thema')}
+
+UMFANG: mindestens 1.500 Wörter Fließtext (ohne Überschriften). Das ist eine harte Vorgabe.
+
+FAKTENTREUE:
+- Aktuelle Fakten (Namen, Zahlen, Ereignisse) NUR aus den beiliegenden Quellen.
+  Quellen mit "volltext" sind deine Hauptgrundlage; bei den übrigen kennst du nur Titel und Teaser –
+  leite daraus keine Details ab, die dort nicht stehen.
+- Erfinde keine Zitate, Zahlen, Personen oder Ämter. Wo die Quellen etwas offen lassen, benenne es als offen.
+- Allgemein bekannte historische Tatsachen darfst du zur Einordnung heranziehen.
+{STIL}
+{bezug_text}
+WELTSPIEGEL:
+- Wähle 3–4 der beiliegenden Quellen, JEDES MEDIUM HÖCHSTENS EINMAL, und fasse zusammen, wie das jeweilige
+  Medium das Thema darstellt. Bevorzuge nicht-deutschsprachige Medien; der Weltspiegel zeigt den Blick von außen.
+- Verweise ausschließlich über die Quellennummer "q". Nenne keine anderen Medien und keine URLs.
+{ESSAY_FORMAT}
 Quellen:
-{json.dumps(quellen, ensure_ascii=False)}
+{json.dumps(_quellen_fuer_prompt(sources), ensure_ascii=False)}
+"""
+    return call_gemini_json(prompt)
+
+
+def write_wochenrueckblick(woche):
+    prompt = f"""
+Du bist Chefredakteur einer europäischen Qualitätszeitung (Stil: NZZ / FAZ) und schreibst den
+sonntäglichen Wochenrückblick „Die Woche“. Grundlage sind ausschließlich die Essays dieser Woche (unten).
+
+AUFGABE: Kein Nacherzählen der einzelnen Essays, sondern eine übergreifende Deutung:
+Welche Linien verbinden die Ereignisse der Woche? Was hat sich verschoben, was bleibt offen?
+Mindestens 1.500 Wörter. Verweise auf 4–6 der Essays mit Links im Format <a href="PFAD">…</a>
+(PFAD exakt wie angegeben). Keine neuen Fakten, die nicht in den Essays stehen.
+{STIL}
+Setze "weltspiegel" auf eine leere Liste.
+{ESSAY_FORMAT}
+Essays der Woche:
+{json.dumps(woche, ensure_ascii=False)}
 """
     return call_gemini_json(prompt)
 
@@ -333,7 +478,7 @@ def build_weltspiegel(entries, sources):
     for e in entries or []:
         try:
             q = int(e.get("q"))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             continue
         if q in used or not (0 <= q < len(sources)):
             continue
@@ -350,11 +495,112 @@ def build_weltspiegel(entries, sources):
             "url": src["url"],
             "_international": src["land"] not in DEUTSCHSPRACHIG,
         })
-    # Internationale Stimmen nach vorn, maximal 4 Einträge
     result.sort(key=lambda r: not r["_international"])
     for r in result:
         del r["_international"]
     return result[:4]
+
+
+# ---------------------------------------------------------------------------
+# Faktencheck
+# ---------------------------------------------------------------------------
+def faktencheck(essay, sources):
+    """Zweiter Durchlauf: prüft konkrete Behauptungen gegen die Quellen und liefert eine korrigierte Fassung."""
+    prompt = f"""
+Du bist Dokumentar (Faktenprüfer) einer Qualitätszeitung. Prüfe den folgenden Essay gegen die beiliegenden Quellen.
+
+PRÜFE JEDE KONKRETE TATSACHENBEHAUPTUNG zum aktuellen Geschehen: Namen, Ämter, Zahlen, Daten, Orte,
+Abläufe, Zitate. Für jede gilt:
+- belegt (steht so oder sinngemäß in einer Quelle) → unverändert lassen
+- nicht belegt oder widersprüchlich → umformulieren, sodass nur noch das Belegte gesagt wird,
+  oder vorsichtig als offen kennzeichnen; erfundene Zitate ganz entfernen
+Allgemein bekannte historische Tatsachen und klar erkennbare Deutungen/Meinungen des Autors sind keine Fehler.
+Ändere sonst nichts: Stil, Aufbau, Länge, HTML-Struktur, Links und die history-anchor-Elemente bleiben erhalten.
+
+Antworte als JSON:
+{{
+  "korrekturen": [{{"stelle": "kurzes Zitat der beanstandeten Stelle", "problem": "warum nicht belegt", "korrektur": "was geändert wurde"}}],
+  "titel": "...", "untertitel": "...", "leitthese": "...", "kurzfassung": ["..."],
+  "inhalt_html": "vollständiger, korrigierter Essay"
+}}
+Wenn nichts zu beanstanden ist: "korrekturen": [] und die Felder unverändert zurückgeben.
+
+ESSAY:
+{json.dumps({k: essay.get(k) for k in ("titel", "untertitel", "leitthese", "kurzfassung", "inhalt_html")}, ensure_ascii=False)}
+
+QUELLEN:
+{json.dumps(_quellen_fuer_prompt(sources), ensure_ascii=False)}
+"""
+    return call_gemini_json(prompt, versuche=3)
+
+
+def wende_faktencheck_an(essay, sources):
+    woerter_vorher = wortzahl(essay.get("inhalt_html", ""))
+    try:
+        fc = faktencheck(essay, sources)
+    except Exception as ex:
+        print(f"   Faktencheck nicht möglich: {ex}")
+        return {"geprueft": False}
+    korrekturen = [k for k in fc.get("korrekturen", []) if isinstance(k, dict)]
+    neu_html = fc.get("inhalt_html", "")
+    # Schutz gegen gekürzte oder kaputte Antworten
+    if neu_html and wortzahl(neu_html) >= 0.85 * woerter_vorher and "<h2" in neu_html:
+        essay["inhalt_html"] = neu_html
+        for feld in ("titel", "untertitel", "leitthese"):
+            if isinstance(fc.get(feld), str) and fc[feld].strip():
+                essay[feld] = fc[feld].strip()
+        if isinstance(fc.get("kurzfassung"), list) and fc["kurzfassung"]:
+            essay["kurzfassung"] = fc["kurzfassung"]
+    elif korrekturen:
+        print("   Korrigierte Fassung unbrauchbar (zu kurz) – Original bleibt, Essay als ungeprüft markiert.")
+        return {"geprueft": False}
+    print(f"   Faktencheck: {len(korrekturen)} Korrektur(en)")
+    return {
+        "geprueft": True,
+        "quellen": len(sources),
+        "korrekturen": [
+            {"stelle": str(k.get("stelle", ""))[:200], "problem": str(k.get("problem", ""))[:300],
+             "korrektur": str(k.get("korrektur", ""))[:300]}
+            for k in korrekturen
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Englische Fassung
+# ---------------------------------------------------------------------------
+def uebersetze(artikel):
+    payload = {
+        "titel": artikel["titel"], "untertitel": artikel["untertitel"], "leitthese": artikel["leitthese"],
+        "kurzfassung": artikel.get("kurzfassung", []), "rubrik": artikel["rubrik"],
+        "historische_anker": artikel.get("historische_anker", {}),
+        "inhalt_html": artikel["inhalt_html"],
+        "weltspiegel": [{"tenor": w["tenor"], "zusammenfassung": w["zusammenfassung"]} for w in artikel["weltspiegel"]],
+    }
+    prompt = f"""
+Translate the following German newspaper essay into polished British English, in the register of
+The Economist or the Financial Times. Keep all HTML tags, attributes, links and the history-anchor
+elements exactly as they are (translate only the visible text). Keep the JSON structure and keys
+unchanged (keys stay in German); "weltspiegel" keeps the same order and length.
+
+{json.dumps(payload, ensure_ascii=False)}
+"""
+    en = call_gemini_json(prompt, versuche=3)
+    if not isinstance(en, dict) or wortzahl(en.get("inhalt_html", "")) < 0.7 * artikel.get("woerter", 0):
+        raise ValueError("Übersetzung unvollständig")
+    ws = en.get("weltspiegel") or []
+    return {
+        "rubrik": en.get("rubrik", artikel["rubrik"]),
+        "titel": en.get("titel", ""), "untertitel": en.get("untertitel", ""), "leitthese": en.get("leitthese", ""),
+        "kurzfassung": en.get("kurzfassung", []),
+        "historische_anker": en.get("historische_anker", {}),
+        "inhalt_html": en.get("inhalt_html", ""),
+        "weltspiegel": [
+            {"tenor": (ws[i] or {}).get("tenor", w["tenor"]) if i < len(ws) else w["tenor"],
+             "zusammenfassung": (ws[i] or {}).get("zusammenfassung", w["zusammenfassung"]) if i < len(ws) else w["zusammenfassung"]}
+            for i, w in enumerate(artikel["weltspiegel"])
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +615,7 @@ def fetch_wikimedia_image(query):
             f"&gsrsearch=filetype:bitmap+{urllib.parse.quote(query)}&gsrnamespace=6&gsrlimit=1"
             "&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1280&format=json"
         )
-        req = urllib.request.Request(api_url, headers={"User-Agent": "DerKorrespondent/1.1"})
+        req = urllib.request.Request(api_url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         for page in data.get("query", {}).get("pages", {}).values():
@@ -387,7 +633,7 @@ def fetch_wikimedia_image(query):
                 }
     except Exception as ex:
         print(f"   Bildsuche-Fehler: {ex}")
-    return None  # Frontend zeigt dann einfach kein Bild
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -402,8 +648,26 @@ def datum_de(d):
     return f"{WOCHENTAGE[d.weekday()]}, {d.day}. {MONATE[d.month - 1]} {d.year}"
 
 
+def datum_de_kurz(iso):
+    d = datetime.strptime(iso, "%Y-%m-%d")
+    return f"{d.day}. {MONATE[d.month - 1]}"
+
+
 def wortzahl(html):
     return len(_clean(html).split())
+
+
+def lesezeit(woerter):
+    return max(1, math.ceil(woerter / WOERTER_PRO_MINUTE))
+
+
+def eindeutiger_slug(titel, vergeben):
+    basis = slugify(titel.split(":")[0] if len(titel.split(":")[0]) > 12 else titel)
+    slug, n = basis, 2
+    while slug in vergeben:
+        slug, n = f"{basis}-{n}", n + 1
+    vergeben.add(slug)
+    return slug
 
 
 def update_archiv_index(heute, ausgabe):
@@ -413,18 +677,14 @@ def update_archiv_index(heute, ausgabe):
             index = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         index = []
-
-    # Einträge für vorhandene Archivdateien ergänzen, die (noch) nicht im Index stehen
     bekannte = {e["datei"] for e in index}
     for name in sorted(os.listdir(ARCHIV_DIR)):
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}\.json", name) and name not in bekannte:
             try:
                 with open(os.path.join(ARCHIV_DIR, name), encoding="utf-8") as f:
-                    a = json.load(f)
-                index.append(_index_eintrag(name, a))
+                    index.append(_index_eintrag(name, json.load(f)))
             except Exception:
                 pass
-
     index = [e for e in index if e["datei"] != f"{heute}.json"]
     index.append(_index_eintrag(f"{heute}.json", ausgabe))
     index.sort(key=lambda e: e["datei"], reverse=True)
@@ -444,57 +704,125 @@ def _index_eintrag(datei, ausgabe):
 # ---------------------------------------------------------------------------
 # Hauptprogramm
 # ---------------------------------------------------------------------------
+def erstelle_artikel(essay, *, nr, ressort_id, ressort_name, gewicht, sources, schlagworte, bild, slugs, ist_rueckblick=False):
+    html = essay.get("inhalt_html", "")
+    woerter = wortzahl(html)
+    titel = essay.get("titel") or ""
+    return {
+        "id": f"essay-{nr}",
+        "slug": eindeutiger_slug(titel, slugs),
+        "ressort": ressort_id,
+        "rubrik": ressort_name,
+        "gewicht": gewicht,
+        "standard": False,
+        "rueckblick": ist_rueckblick,
+        "schlagworte": [str(s).strip() for s in (schlagworte or []) if str(s).strip()][:3],
+        "woerter": woerter,
+        "lesezeit": f"{lesezeit(woerter)} Min. Lesezeit",
+        "titel": titel,
+        "untertitel": essay.get("untertitel", ""),
+        "leitthese": essay.get("leitthese", ""),
+        "kurzfassung": [str(k) for k in (essay.get("kurzfassung") or [])][:3],
+        "bild": bild,
+        "historische_anker": essay.get("historische_anker", {}),
+        "inhalt_html": html,
+        "weltspiegel": build_weltspiegel(essay.get("weltspiegel"), sources) if sources else [],
+        "quellen": [{"medium": s["medium"], "land": s["land"], "titel": s["titel"], "url": s["url"],
+                     "volltext": bool(s.get("volltext"))} for s in sources],
+    }
+
+
 def main():
     jetzt = datetime.now(TZ)
     heute = jetzt.strftime("%Y-%m-%d")
+    mit_englisch = os.environ.get("ENGLISCH", "1") != "0"
 
     items = fetch_rss_headlines()
-    if len(items) < 10:
+    if len(items) < 20:
         sys.exit("Zu wenige Meldungen – Ausgabe wird nicht erzeugt (alte Ausgabe bleibt bestehen).")
 
-    topics = choose_topics(items)
-    artikel = []
-    for nr, topic in enumerate(topics, start=1):
-        print(f"3. Essay {nr}/{len(topics)}: {topic.get('arbeitstitel')}")
+    frueher = lade_archiv(14, jetzt.replace(tzinfo=None))
+    frueher_nach_ref = {e["ref"]: e for e in frueher}
+    themen = choose_topics(items, frueher)
+    ressort_name = {r["id"]: r["name"] for r in RESSORTS}
+    reihenfolge = {r["id"]: n for n, r in enumerate(RESSORTS)}
+    themen.sort(key=lambda t: reihenfolge[t["ressort"]])
+    print(f"   {len(themen)} Themen: " + "; ".join(f"{t['ressort']}: {t['thema']}" for t in themen))
+    pause()
+
+    artikel, slugs = [], set()
+    for nr, topic in enumerate(themen, start=1):
+        rid = topic["ressort"]
+        print(f"3. [{ressort_name[rid]}] {topic.get('thema')}")
         idx = [i for i in topic.get("quellen", []) if isinstance(i, int) and 0 <= i < len(items)]
         sources = [items[i] for i in dict.fromkeys(idx)]
-        if len(sources) < 1:
-            print("   Keine gültigen Quellen – Thema übersprungen.")
+        if len(sources) < 2:
+            print("   Zu wenige gültige Quellen – übersprungen.")
             continue
         n_voll = anreichern(sources)
         print(f"   {len(sources)} Quellen, davon {n_voll} mit Volltext")
+        bezug = frueher_nach_ref.get(topic.get("bezug") or "")
         try:
-            essay = write_essay(topic, sources)
+            essay = write_essay(topic, ressort_name[rid], sources, bezug)
         except Exception as ex:
             print(f"   Essay fehlgeschlagen, übersprungen: {ex}")
             continue
-
-        html = essay.get("inhalt_html", "")
-        woerter = wortzahl(html)
-        if woerter < 300:
-            print(f"   Essay zu kurz ({woerter} Wörter) – übersprungen.")
+        if wortzahl(essay.get("inhalt_html", "")) < 600:
+            print("   Essay zu kurz – übersprungen.")
             continue
-        print(f"   {woerter} Wörter")
+        pause()
+        fc = wende_faktencheck_an(essay, sources)
+        pause()
+        try:
+            gewicht = float(topic.get("gewicht", 5))
+        except (TypeError, ValueError):
+            gewicht = 5.0
+        a = erstelle_artikel(
+            essay, nr=nr, ressort_id=rid, ressort_name=ressort_name[rid], gewicht=gewicht, sources=sources,
+            schlagworte=topic.get("schlagworte"), bild=fetch_wikimedia_image(topic.get("bild_suchbegriff")), slugs=slugs,
+        )
+        a["faktencheck"] = fc
+        if bezug:
+            a["bezug"] = {"titel": bezug["titel"], "datum": bezug["datum"], "pfad": bezug["pfad"]}
+        print(f"   {a['woerter']} Wörter, {len(a['weltspiegel'])} Weltspiegel-Stimmen")
+        artikel.append(a)
 
-        artikel.append({
-            "id": f"essay-{nr}",
-            "rubrik": topic.get("rubrik", "Zeitgeschehen"),
-            "woerter": woerter,
-            "lesezeit": f"{max(1, math.ceil(woerter / WOERTER_PRO_MINUTE))} Min. Lesezeit",
-            "titel": essay.get("titel") or topic.get("arbeitstitel", ""),
-            "untertitel": essay.get("untertitel", ""),
-            "leitthese": essay.get("leitthese", ""),
-            "bild": fetch_wikimedia_image(topic.get("bild_suchbegriff")),
-            "historische_anker": essay.get("historische_anker", {}),
-            "inhalt_html": html,
-            "weltspiegel": build_weltspiegel(essay.get("weltspiegel"), sources),
-            "quellen": [{"medium": s["medium"], "land": s["land"], "titel": s["titel"], "url": s["url"],
-                         "volltext": bool(s.get("volltext"))} for s in sources],
-        })
-        time.sleep(8)
-
-    if len(artikel) < 3:
+    if len(artikel) < 4:
         sys.exit(f"Nur {len(artikel)} Essays erzeugt – Ausgabe wird nicht veröffentlicht.")
+
+    # Sonntag: Wochenrückblick aus den Essays Montag–Samstag
+    if jetzt.weekday() == 6:
+        woche = [{"datum": e["datum"], "ressort": e["ressort"], "titel": e["titel"], "leitthese": e["leitthese"],
+                  "pfad": e["pfad"]} for e in lade_archiv(6, jetzt.replace(tzinfo=None))]
+        if len(woche) >= 8:
+            print("4. Wochenrückblick „Die Woche“...")
+            try:
+                essay = write_wochenrueckblick(woche)
+                if wortzahl(essay.get("inhalt_html", "")) >= 600:
+                    a = erstelle_artikel(essay, nr=len(artikel) + 1, ressort_id="woche", ressort_name="Die Woche",
+                                         gewicht=11, sources=[], schlagworte=["Wochenrückblick"], bild=None,
+                                         slugs=slugs, ist_rueckblick=True)
+                    a["faktencheck"] = {"geprueft": False, "hinweis": "Beruht auf den geprüften Essays der Woche"}
+                    artikel.insert(0, a)
+                pause()
+            except Exception as ex:
+                print(f"   Wochenrückblick fehlgeschlagen: {ex}")
+
+    # Standardauswahl: die gewichtigsten Essays (Rückblick immer dabei)
+    for a in sorted(artikel, key=lambda x: -x["gewicht"])[:STANDARD_ANZAHL]:
+        a["standard"] = True
+    for n, a in enumerate(artikel, start=1):
+        a["id"] = f"essay-{n}"
+
+    if mit_englisch:
+        print("5. Englische Fassung...")
+        for a in artikel:
+            try:
+                a["en"] = uebersetze(a)
+                print(f"   ✓ {a['slug']}")
+            except Exception as ex:
+                print(f"   Übersetzung fehlgeschlagen ({a['slug']}): {ex}")
+            pause()
 
     ausgabe = {
         "datum": datum_de(jetzt),
@@ -502,6 +830,7 @@ def main():
         "ausgabe_nr": str((jetzt.date() - datetime(2026, 1, 1).date()).days + 1),
         "erzeugt": jetzt.isoformat(timespec="minutes"),
         "modell": MODEL_NAME,
+        "ressorts": [{"id": r["id"], "name": r["name"]} for r in RESSORTS],
         "artikel": artikel,
     }
 
