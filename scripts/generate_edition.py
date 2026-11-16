@@ -527,6 +527,16 @@ Antworte als reines JSON:
 STIL = """
 STIL UND INHALT:
 - Elegant, präzise, ohne Pathos, ohne Metaphern-Kaskaden, ohne reißerischen Jargon.
+- HUMOR: Der Essay bleibt analytisch und auf höchstem sprachlichem Niveau, trägt aber eine feine humoristische
+  Note – trockene Ironie, Understatement, die elegant gesetzte Pointe, das treffende Paradox; in der Tradition
+  großer Feuilletonisten (Tucholsky, Kästner, Polgar), nie in der des Kabaretts.
+  · Ziel des Humors sind das Absurde der Macht, Bürokratie, politische Rhetorik, Widersprüche zwischen Anspruch
+    und Wirklichkeit – nie die Opfer, nie das Leid von Menschen, nie Herkunft, Religion oder Körper.
+  · Dosierung: etwa eine pointierte Wendung pro Kapitel; lieber eine glänzende als drei mittelmäßige.
+    Keine Kalauer, keine Wortspiel-Häufungen, keine Ausrufezeichen, keine flapsige Umgangssprache.
+  · Bei Krieg, Terror, Katastrophen, Krankheit und Tod: allenfalls stille Ironie gegenüber Funktionären und
+    Phrasen – im Zweifel gar kein Humor. Der Ernst des Themas hat Vorrang.
+  · Ironie muss als Ironie erkennbar bleiben und darf keine falschen Tatsachen nahelegen.
 - Gliederung: 4 Kapitel mit römischen Überschriften (<h2>I. ...</h2>), dazwischen <p>, optional ein <blockquote>
   (nur als hervorgehobene eigene These, nie als erfundenes Zitat).
 - Genau 2 historische oder begriffliche Anker im Text, Format:
@@ -633,6 +643,9 @@ Abläufe, Zitate. Für jede gilt:
 - nicht belegt oder widersprüchlich → umformulieren, sodass nur noch das Belegte gesagt wird,
   oder vorsichtig als offen kennzeichnen; erfundene Zitate ganz entfernen
 Allgemein bekannte historische Tatsachen und klar erkennbare Deutungen/Meinungen des Autors sind keine Fehler.
+Ironische Zuspitzungen, Pointen und Understatement sind Stilmittel, keine Tatsachenbehauptungen: lass sie stehen,
+solange sie keine falschen Fakten nahelegen. Entferne Humor nur, wenn er Opfer oder Leid verspottet oder eine
+reale Person herabwürdigt.
 Prüfe außerdem Titel, Untertitel und Text auf herabwürdigende Etiketten für reale Personen und auf
 Formulierungen, die Vorwürfe als erwiesen darstellen, obwohl die Quellen das nicht hergeben – diese entschärfen
 und als Korrektur aufführen.
@@ -700,7 +713,8 @@ def uebersetze(artikel):
     }
     prompt = f"""
 Translate the following German newspaper essay into polished British English, in the register of
-The Economist or the Financial Times. Keep all HTML tags, attributes, links and the history-anchor
+The Economist or the Financial Times. Preserve the dry irony and the punchlines – render them as
+wittily in English as they are in German, not literally. Keep all HTML tags, attributes, links and the history-anchor
 elements exactly as they are (translate only the visible text). Keep the JSON structure and keys
 unchanged (keys stay in German); "weltspiegel" keeps the same order and length.
 
