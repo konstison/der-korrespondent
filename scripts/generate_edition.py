@@ -256,14 +256,52 @@ def _gemini():
     return _client
 
 
-def call_gemini_json(prompt, versuche=4):
-    """Ruft Gemini mit JSON-Antwort auf; fängt Limits/Überlastung ab und parst das JSON."""
+# Modelle je Aufgabe. Die "leichte" Stufe hat im Free Tier ein eigenes, viel größeres Tageskontingent.
+MODELL_HAUPT = MODEL_NAME
+MODELL_LEICHT = os.environ.get("GEMINI_MODEL_LEICHT", "gemini-3.5-flash-lite")
+AUFGABEN_MODELL = {
+    "chefredaktion": MODELL_HAUPT,
+    "essay": MODELL_HAUPT,
+    "faktencheck": os.environ.get("GEMINI_MODEL_FAKTENCHECK", MODELL_HAUPT),
+    "uebersetzung": os.environ.get("GEMINI_MODEL_UEBERSETZUNG", MODELL_LEICHT),
+}
+# Listenpreise in USD pro 1 Mio. Tokens (Eingabe, Ausgabe inkl. Thinking) – nur für die Kostenschätzung im Log
+PREISE = {
+    "gemini-3.8-flash": (0.375, 1.875),
+    "gemini-3.5-flash-lite": (0.10, 0.40),
+}
+NUTZUNG = {}            # modell -> {"anfragen", "eingabe", "ausgabe", "thinking"}
+ERSCHOEPFT = set()      # Modelle, deren Tageskontingent heute aufgebraucht ist
+
+
+def _buche(modell, resp):
+    u = getattr(resp, "usage_metadata", None)
+    n = NUTZUNG.setdefault(modell, {"anfragen": 0, "eingabe": 0, "ausgabe": 0, "thinking": 0})
+    n["anfragen"] += 1
+    if u:
+        n["eingabe"] += getattr(u, "prompt_token_count", 0) or 0
+        n["ausgabe"] += getattr(u, "candidates_token_count", 0) or 0
+        n["thinking"] += getattr(u, "thoughts_token_count", 0) or 0
+
+
+def _tageskontingent_erschoepft(msg):
+    m = msg.lower()
+    return "429" in m and ("perday" in m or "per day" in m or "requests_per_day" in m or "daily" in m)
+
+
+def call_gemini_json(prompt, versuche=4, aufgabe="essay"):
+    """Ruft Gemini mit JSON-Antwort auf; fängt Limits/Überlastung ab und parst das JSON.
+    Ist das Tageskontingent des Hauptmodells erschöpft (Free Tier), wird auf das leichte Modell ausgewichen."""
     from google.genai import types
     config = types.GenerateContentConfig(response_mime_type="application/json")
     last_err = None
     for attempt in range(1, versuche + 1):
+        modell = AUFGABEN_MODELL.get(aufgabe, MODELL_HAUPT)
+        if modell in ERSCHOEPFT:
+            modell = MODELL_LEICHT
         try:
-            resp = _gemini().models.generate_content(model=MODEL_NAME, contents=prompt, config=config)
+            resp = _gemini().models.generate_content(model=modell, contents=prompt, config=config)
+            _buche(modell, resp)
             return json.loads(resp.text)
         except json.JSONDecodeError as ex:
             last_err = ex
@@ -271,12 +309,41 @@ def call_gemini_json(prompt, versuche=4):
         except Exception as ex:
             last_err = ex
             msg = str(ex)
-            print(f"   API-Hinweis (Versuch {attempt}/{versuche}): {msg[:150]}")
+            print(f"   API-Hinweis [{modell}] (Versuch {attempt}/{versuche}): {msg[:160]}")
+            if _tageskontingent_erschoepft(msg) and modell != MODELL_LEICHT:
+                print(f"   Tageskontingent von {modell} erschöpft – weiter mit {MODELL_LEICHT}.")
+                ERSCHOEPFT.add(modell)
+                continue
             if any(k in msg for k in ("429", "503", "500", "ResourceExhausted", "UNAVAILABLE", "INTERNAL")):
                 time.sleep(attempt * 20)
                 continue
             raise
     raise RuntimeError(f"Gemini dauerhaft nicht erreichbar: {last_err}")
+
+
+def nutzungsbericht(datum):
+    """Gibt Anfragen, Tokens und geschätzte Kosten aus und hängt sie an data/nutzung.json an."""
+    print("\nNutzung & geschätzte Kosten (Listenpreise bezahlter Tarif):")
+    gesamt = 0.0
+    zeilen = []
+    for modell, n in NUTZUNG.items():
+        p_ein, p_aus = PREISE.get(modell, (0, 0))
+        kosten = n["eingabe"] / 1e6 * p_ein + (n["ausgabe"] + n["thinking"]) / 1e6 * p_aus
+        gesamt += kosten
+        zeilen.append({"modell": modell, **n, "kosten_usd": round(kosten, 4)})
+        print(f"   {modell}: {n['anfragen']} Anfragen, {n['eingabe']:,} Eingabe-, {n['ausgabe']:,} Ausgabe-, "
+              f"{n['thinking']:,} Thinking-Tokens ≈ {kosten:.3f} USD")
+    print(f"   Summe ≈ {gesamt:.3f} USD/Tag ≈ {gesamt * 30:.2f} USD/Monat")
+    pfad = os.path.join(DATA_DIR, "nutzung.json")
+    try:
+        with open(pfad, encoding="utf-8") as f:
+            verlauf = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        verlauf = []
+    verlauf = [v for v in verlauf if v.get("datum") != datum]
+    verlauf.append({"datum": datum, "modelle": zeilen, "summe_usd": round(gesamt, 4)})
+    with open(pfad, "w", encoding="utf-8") as f:
+        json.dump(verlauf[-120:], f, ensure_ascii=False, indent=2)
 
 
 def pause():
@@ -367,7 +434,7 @@ Essays der vergangenen Tage:
 Meldungskatalog:
 {json.dumps(katalog, ensure_ascii=False)}
 """
-    data = call_gemini_json(prompt)
+    data = call_gemini_json(prompt, aufgabe="chefredaktion")
     themen = data.get("themen", []) if isinstance(data, dict) else data
     gueltig, gesehen = [], set()
     ressort_ids = {r["id"] for r in RESSORTS}
@@ -538,7 +605,7 @@ ESSAY:
 QUELLEN:
 {json.dumps(_quellen_fuer_prompt(sources), ensure_ascii=False)}
 """
-    return call_gemini_json(prompt, versuche=3)
+    return call_gemini_json(prompt, versuche=3, aufgabe="faktencheck")
 
 
 def wende_faktencheck_an(essay, sources):
@@ -592,7 +659,7 @@ unchanged (keys stay in German); "weltspiegel" keeps the same order and length.
 
 {json.dumps(payload, ensure_ascii=False)}
 """
-    en = call_gemini_json(prompt, versuche=3)
+    en = call_gemini_json(prompt, versuche=3, aufgabe="uebersetzung")
     if not isinstance(en, dict) or wortzahl(en.get("inhalt_html", "")) < 0.7 * artikel.get("woerter", 0):
         raise ValueError("Übersetzung unvollständig")
     ws = en.get("weltspiegel") or []
@@ -795,6 +862,7 @@ def main():
         artikel.append(a)
 
     if len(artikel) < 4:
+        nutzungsbericht(heute)
         sys.exit(f"Nur {len(artikel)} Essays erzeugt – Ausgabe wird nicht veröffentlicht.")
 
     # Sonntag: Wochenrückblick aus den Essays Montag–Samstag
@@ -837,6 +905,7 @@ def main():
         "ausgabe_nr": str((jetzt.date() - datetime(2026, 1, 1).date()).days + 1),
         "erzeugt": jetzt.isoformat(timespec="minutes"),
         "modell": MODEL_NAME,
+        "modelle": sorted(NUTZUNG.keys()),
         "ressorts": [{"id": r["id"], "name": r["name"]} for r in RESSORTS],
         "artikel": artikel,
     }
@@ -846,6 +915,7 @@ def main():
         with open(pfad, "w", encoding="utf-8") as f:
             json.dump(ausgabe, f, ensure_ascii=False, indent=2)
     update_archiv_index(heute, ausgabe)
+    nutzungsbericht(heute)
     print(f"Fertig: {len(artikel)} Essays, archiviert unter {ARCHIV_DIR}/{heute}.json")
 
 

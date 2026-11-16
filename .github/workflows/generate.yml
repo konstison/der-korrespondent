@@ -5,6 +5,16 @@ on:
     # 04:15 UTC = 05:15 Uhr MEZ / 06:15 Uhr MESZ
     - cron: '15 4 * * *'
   workflow_dispatch: # manueller Start über den Actions-Tab
+    inputs:
+      schluessel:
+        description: 'API-Schlüssel: bezahlt = GEMINI_API_KEY, frei = GEMINI_API_KEY_FREE (Projekt ohne Abrechnung)'
+        type: choice
+        options: [bezahlt, frei]
+        default: bezahlt
+      testlauf:
+        description: 'Testlauf: nur erzeugen und Kosten messen, nichts veröffentlichen'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -33,7 +43,7 @@ jobs:
 
       - name: Ausgabe generieren
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ (inputs.schluessel == 'frei' || vars.SCHLUESSEL == 'frei') && secrets.GEMINI_API_KEY_FREE || secrets.GEMINI_API_KEY }}
         run: python scripts/generate_edition.py
 
       - name: Statische Seiten bauen (Essays, Archiv, Dossiers, Feed, Sitemap)
@@ -41,7 +51,12 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL || 'https://konstison.github.io/der-korrespondent' }}
         run: python scripts/build_site.py
 
+      - name: Nutzungsbericht
+        if: always()
+        run: test -f data/nutzung.json && tail -c 1500 data/nutzung.json || true
+
       - name: Ausgabe & Archiv veröffentlichen
+        if: ${{ !inputs.testlauf }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
