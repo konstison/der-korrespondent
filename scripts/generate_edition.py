@@ -418,6 +418,10 @@ STIL UND INHALT:
 - Genau 2 historische oder begriffliche Anker im Text, Format:
   <span class="history-anchor" onclick="showHistory('anker1')">Begriff</span> bzw. 'anker2'.
 - "kurzfassung": 3 Sätze, die den Essay für eilige Leser zusammenfassen.
+- PERSÖNLICHKEITSRECHTE: Keine herabwürdigenden Etiketten für reale Personen (z. B. „Monster“, „Verbrecher“,
+  „Lügner“) – weder in Titel noch Text. Bei Vorwürfen und Verfahren präzise bleiben (beschuldigt, angeklagt,
+  nicht rechtskräftig verurteilt, rechtskräftig verurteilt) und die Unschuldsvermutung wahren.
+  Kritik richtet sich an Handlungen und Strukturen, nicht an die Würde von Personen.
 """
 
 
@@ -515,6 +519,9 @@ Abläufe, Zitate. Für jede gilt:
 - nicht belegt oder widersprüchlich → umformulieren, sodass nur noch das Belegte gesagt wird,
   oder vorsichtig als offen kennzeichnen; erfundene Zitate ganz entfernen
 Allgemein bekannte historische Tatsachen und klar erkennbare Deutungen/Meinungen des Autors sind keine Fehler.
+Prüfe außerdem Titel, Untertitel und Text auf herabwürdigende Etiketten für reale Personen und auf
+Formulierungen, die Vorwürfe als erwiesen darstellen, obwohl die Quellen das nicht hergeben – diese entschärfen
+und als Korrektur aufführen.
 Ändere sonst nichts: Stil, Aufbau, Länge, HTML-Struktur, Links und die history-anchor-Elemente bleiben erhalten.
 
 Antworte als JSON:
