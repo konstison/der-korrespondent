@@ -1,29 +1,66 @@
-const CACHE_NAME = 'korrespondent-v2';
+// Der Korrespondent – Service Worker
+// Ausgaben & Seiten: Netz zuerst (immer aktuell), offline aus dem Zwischenspeicher.
+// Schriften, Icons, Stylesheets: Zwischenspeicher zuerst (ändern sich selten).
+const VERSION = 'korrespondent-v3';
+const SHELL = [
+  './', './index.html', './manifest.json', './icon.svg',
+  './assets/fonts.css', './assets/site.css', './assets/icon-192.png',
+  './data/ausgabe.json', './data/archiv/index.json'
+];
 
-// Installiert den Service Worker sofort
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(VERSION)
+      .then((cache) => Promise.all(SHELL.map((url) => cache.add(url).catch(() => null))))
+      .then(() => self.skipWaiting())
+  );
 });
 
-// Übernimmt sofort die Kontrolle über die Seite
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
 
-// Network-First-Strategie: Lädt immer die frischeste Ausgabe aus dem Netz,
-// fällt aber bei Offline-Betrieb (z. B. im Zug) auf den Cache zurück.
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+
+  // Bilder von Wikimedia: Zwischenspeicher zuerst, damit gelesene Ausgaben offline vollständig sind
+  if (url.hostname.endsWith('wikimedia.org')) {
+    event.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res.ok || res.type === 'opaque') {
+          const copy = res.clone();
+          caches.open(VERSION).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => hit))
+    );
+    return;
+  }
+  if (url.origin !== self.location.origin) return;
+
+  const statisch = /\/assets\/|\.woff2$|icon\.svg$/.test(url.pathname);
+  if (statisch) {
+    event.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+        return res;
+      }))
+    );
+    return;
+  }
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
-        return response;
+    fetch(req)
+      .then((res) => {
+        if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+        return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match('./index.html')))
   );
 });
