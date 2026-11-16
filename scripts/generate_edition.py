@@ -4,10 +4,12 @@ Der Korrespondent – Generator der Tagesausgabe.
 Ablauf:
   1. RSS-Feeds aller Quellen lesen (deutsch + international)
   2. Gemini wählt 5 Themen und ordnet jedem Thema echte Meldungen zu
-  3. Gemini schreibt je Thema einen Essay – NUR auf Basis der zugeordneten Meldungen
-  4. Der Weltspiegel wird im Code aus den echten Meldungen gebaut:
+  3. Für frei zugängliche Quellen wird der Artikel-Volltext geladen (robots.txt wird respektiert,
+     Bezahlangebote werden nur mit Titel + Teaser genutzt)
+  4. Gemini schreibt je Thema einen Essay – NUR auf Basis der zugeordneten Meldungen
+  5. Der Weltspiegel wird im Code aus den echten Meldungen gebaut:
      Medium, Land und URL stammen immer aus dem Feed, nie vom Modell.
-  5. Ausgabe nach data/ausgabe.json, Kopie ins Archiv, Archiv-Index aktualisieren
+  6. Ausgabe nach data/ausgabe.json, Kopie ins Archiv, Archiv-Index aktualisieren
 """
 
 import json
@@ -18,6 +20,8 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import urllib.robotparser
+from html.parser import HTMLParser
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -33,20 +37,34 @@ WOERTER_PRO_MINUTE = 220
 # ---------------------------------------------------------------------------
 # Quellen
 # ---------------------------------------------------------------------------
+# volltext=True: frei zugängliches Angebot, Artikeltext darf geladen werden.
+# volltext=False: Bezahl-/Meter-Angebot – nur Titel + Teaser aus dem Feed.
 RSS_FEEDS = [
-    # Deutschland / DACH
-    {"name": "Tagesschau", "land": "Deutschland", "url": "https://www.tagesschau.de/xml/rss2/"},
-    {"name": "Deutschlandfunk", "land": "Deutschland", "url": "https://www.deutschlandfunk.de/nachrichten-100.rss"},
-    {"name": "FAZ", "land": "Deutschland", "url": "https://www.faz.net/rss/aktuell/"},
-    {"name": "Der Spiegel", "land": "Deutschland", "url": "https://www.spiegel.de/schlagzeilen/index.rss"},
-    {"name": "Neue Zürcher Zeitung", "land": "Schweiz", "url": "https://www.nzz.ch/recent.rss"},
-    {"name": "Der Standard", "land": "Österreich", "url": "https://www.derstandard.at/rss"},
-    # International
-    {"name": "The Guardian", "land": "Großbritannien", "url": "https://www.theguardian.com/world/rss"},
-    {"name": "BBC News", "land": "Großbritannien", "url": "https://feeds.bbci.co.uk/news/world/rss.xml"},
-    {"name": "Le Monde", "land": "Frankreich", "url": "https://www.lemonde.fr/international/rss_full.xml"},
-    {"name": "Al Jazeera", "land": "Katar", "url": "https://www.aljazeera.com/xml/rss/all.xml"},
+    # Deutschland
+    {"name": "Tagesschau", "land": "Deutschland", "url": "https://www.tagesschau.de/xml/rss2/", "volltext": True},
+    {"name": "Deutschlandfunk", "land": "Deutschland", "url": "https://www.deutschlandfunk.de/nachrichten-100.rss", "volltext": True},
+    {"name": "FAZ", "land": "Deutschland", "url": "https://www.faz.net/rss/aktuell/", "volltext": False},
+    {"name": "Süddeutsche Zeitung", "land": "Deutschland", "url": "https://rss.sueddeutsche.de/rss/Topthemen", "volltext": False},
+    {"name": "Die Zeit", "land": "Deutschland", "url": "https://newsfeed.zeit.de/index", "volltext": False},
+    {"name": "Der Spiegel", "land": "Deutschland", "url": "https://www.spiegel.de/schlagzeilen/index.rss", "volltext": False},
+    # Schweiz / Österreich
+    {"name": "Neue Zürcher Zeitung", "land": "Schweiz", "url": "https://www.nzz.ch/recent.rss", "volltext": False},
+    {"name": "Der Standard", "land": "Österreich", "url": "https://www.derstandard.at/rss", "volltext": True},
+    # Europa
+    {"name": "Le Monde", "land": "Frankreich", "url": "https://www.lemonde.fr/international/rss_full.xml", "volltext": False},
+    {"name": "El País", "land": "Spanien", "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/english.elpais.com/portada", "volltext": False},
+    {"name": "Politico Europe", "land": "EU / Brüssel", "url": "https://www.politico.eu/feed/", "volltext": True},
+    {"name": "Euronews", "land": "EU / Frankreich", "url": "https://www.euronews.com/rss", "volltext": True},
+    {"name": "The Guardian", "land": "Großbritannien", "url": "https://www.theguardian.com/world/rss", "volltext": True},
+    {"name": "BBC News", "land": "Großbritannien", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "volltext": True},
+    # Welt
+    {"name": "The New York Times", "land": "USA", "url": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "volltext": False},
+    {"name": "Al Jazeera", "land": "Katar", "url": "https://www.aljazeera.com/xml/rss/all.xml", "volltext": True},
 ]
+DEUTSCHSPRACHIG = {"Deutschland", "Schweiz", "Österreich"}
+USER_AGENT = "Mozilla/5.0 (compatible; DerKorrespondent/1.2; +https://konstison.github.io/der-korrespondent/)"
+VOLLTEXT_MAX_ZEICHEN = 6000
+VOLLTEXT_PRO_THEMA = 5
 
 ATOM = "{http://www.w3.org/2005/Atom}"
 TAG_RE = re.compile(r"<[^>]+>")
@@ -65,7 +83,7 @@ def fetch_rss_headlines(limit_per_feed=10):
     items = []
     for feed in RSS_FEEDS:
         try:
-            req = urllib.request.Request(feed["url"], headers={"User-Agent": "Mozilla/5.0 (DerKorrespondent)"})
+            req = urllib.request.Request(feed["url"], headers={"User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=15) as resp:
                 root = ET.fromstring(resp.read())
 
@@ -88,6 +106,7 @@ def fetch_rss_headlines(limit_per_feed=10):
                     items.append({
                         "medium": feed["name"],
                         "land": feed["land"],
+                        "volltext_erlaubt": feed.get("volltext", False),
                         "titel": title,
                         "kurztext": desc[:400],
                         "url": link.strip(),
@@ -105,6 +124,89 @@ def fetch_rss_headlines(limit_per_feed=10):
             unique.append(it)
     print(f"-> {len(unique)} Meldungen aus {len({i['medium'] for i in unique})} Medien.")
     return unique
+
+
+# ---------------------------------------------------------------------------
+# Volltexte (nur frei zugängliche Quellen, robots.txt wird respektiert)
+# ---------------------------------------------------------------------------
+_robots_cache = {}
+
+
+def _robots_erlaubt(url):
+    teile = urllib.parse.urlsplit(url)
+    basis = f"{teile.scheme}://{teile.netloc}"
+    if basis not in _robots_cache:
+        rp = urllib.robotparser.RobotFileParser()
+        try:
+            req = urllib.request.Request(basis + "/robots.txt", headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                rp.parse(resp.read().decode("utf-8", "ignore").splitlines())
+        except Exception:
+            rp = None  # robots.txt nicht lesbar -> vorsichtshalber kein Volltext
+        _robots_cache[basis] = rp
+    rp = _robots_cache[basis]
+    return bool(rp and rp.can_fetch(USER_AGENT, url))
+
+
+class _AbsatzParser(HTMLParser):
+    """Sammelt den Text aller <p>-Absätze außerhalb von Navigation, Kopf, Fuß, Skripten usw."""
+    IGNORIEREN = {"script", "style", "nav", "header", "footer", "aside", "form", "figure", "noscript", "button"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tiefe_ignoriert = 0
+        self.in_p = False
+        self.absatz = []
+        self.absaetze = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.IGNORIEREN:
+            self.tiefe_ignoriert += 1
+        elif tag == "p" and not self.tiefe_ignoriert:
+            self.in_p, self.absatz = True, []
+
+    def handle_endtag(self, tag):
+        if tag in self.IGNORIEREN and self.tiefe_ignoriert:
+            self.tiefe_ignoriert -= 1
+        elif tag == "p" and self.in_p:
+            self.in_p = False
+            text = re.sub(r"\s+", " ", "".join(self.absatz)).strip()
+            if len(text) > 60:  # kurze Bildunterschriften, Teaser-Fetzen etc. weglassen
+                self.absaetze.append(text)
+
+    def handle_data(self, data):
+        if self.in_p and not self.tiefe_ignoriert:
+            self.absatz.append(data)
+
+
+def fetch_volltext(url):
+    if not _robots_erlaubt(url):
+        return ""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "de,en;q=0.8"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            charset = resp.headers.get_content_charset() or "utf-8"
+            html = resp.read(2_000_000).decode(charset, "ignore")
+        parser = _AbsatzParser()
+        parser.feed(html)
+        text = "\n".join(parser.absaetze)
+        return text[:VOLLTEXT_MAX_ZEICHEN] if len(text) > 400 else ""
+    except Exception as ex:
+        print(f"   Volltext nicht ladbar ({urllib.parse.urlsplit(url).netloc}): {ex}")
+        return ""
+
+
+def anreichern(sources):
+    """Lädt Volltexte für bis zu VOLLTEXT_PRO_THEMA freie Quellen eines Themas."""
+    geladen = 0
+    for s in sources:
+        if geladen >= VOLLTEXT_PRO_THEMA:
+            break
+        if s.get("volltext_erlaubt") and "volltext" not in s:
+            s["volltext"] = fetch_volltext(s["url"])
+            if s["volltext"]:
+                geladen += 1
+    return geladen
 
 
 # ---------------------------------------------------------------------------
@@ -158,8 +260,10 @@ Wähle exakt 5 Themen, die für den deutschsprachigen Leserraum heute am bedeute
 Kriterien:
 - Gewicht und Tragweite vor Aufregung; keine Boulevard- oder Sportthemen.
 - Bevorzuge Themen, über die mehrere Medien aus verschiedenen Ländern berichten.
+- Ordne jedem Thema, wenn irgend möglich, auch Meldungen nicht-deutschsprachiger Medien zu
+  (z. B. Guardian, BBC, Le Monde, El País, NYT, Al Jazeera, Politico).
 - Die 5 Themen sollen sich inhaltlich klar unterscheiden.
-- Ordne jedem Thema ALLE Meldungen aus dem Katalog zu, die es tatsächlich behandeln (mindestens 2, ideal 3–8).
+- Ordne jedem Thema ALLE Meldungen aus dem Katalog zu, die es tatsächlich behandeln (mindestens 2, ideal 4–10).
   Verwende nur Indizes, die im Katalog existieren.
 
 Antworte als JSON-Array mit 5 Objekten:
@@ -175,10 +279,12 @@ Meldungskatalog:
 
 
 def write_essay(topic, sources):
-    quellen = [
-        {"q": n, "medium": s["medium"], "land": s["land"], "titel": s["titel"], "kurztext": s["kurztext"]}
-        for n, s in enumerate(sources)
-    ]
+    quellen = []
+    for n, s in enumerate(sources):
+        q = {"q": n, "medium": s["medium"], "land": s["land"], "titel": s["titel"], "kurztext": s["kurztext"]}
+        if s.get("volltext"):
+            q["volltext"] = s["volltext"]
+        quellen.append(q)
     prompt = f"""
 Du bist ein erfahrener, nüchterner Leitartikler einer europäischen Qualitätszeitung (Stil: NZZ / FAZ).
 Schreibe einen tiefgründigen, sachlich fundierten Essay zum Thema: {topic.get('arbeitstitel')}
@@ -188,6 +294,8 @@ UMFANG: mindestens 1.500 Wörter Fließtext (ohne Überschriften). Das ist eine 
 STIL UND INHALT:
 - Elegant, präzise, ohne Pathos, ohne Metaphern-Kaskaden, ohne reißerischen Jargon.
 - Faktentreue: Aktuelle Fakten (Namen, Zahlen, Ereignisse von heute) NUR aus den beiliegenden Quellen.
+  Quellen mit "volltext" sind deine Hauptgrundlage; bei den übrigen kennst du nur Titel und Teaser –
+  leite daraus keine Details ab, die dort nicht stehen.
   Erfinde keine Zitate, Zahlen, Personen oder Ämter. Wo die Quellen etwas offen lassen, benenne es als offen.
 - Allgemein bekannte historische Tatsachen darfst du zur Einordnung heranziehen.
 - Gliederung: 4 Kapitel mit römischen Überschriften (<h2>I. ...</h2>), dazwischen <p>, optional ein <blockquote>
@@ -196,8 +304,9 @@ STIL UND INHALT:
   <span class="history-anchor" onclick="showHistory('anker1')">Begriff</span> bzw. 'anker2'.
 
 WELTSPIEGEL:
-- Fasse für 2–4 der beiliegenden Quellen (bevorzugt aus verschiedenen Ländern) zusammen, wie das jeweilige Medium
-  das Thema darstellt. Verweise ausschließlich über die Quellennummer "q". Nenne keine anderen Medien und keine URLs.
+- Wähle 3–4 der beiliegenden Quellen, JEDES MEDIUM HÖCHSTENS EINMAL, und fasse zusammen, wie das jeweilige
+  Medium das Thema darstellt. Bevorzuge nicht-deutschsprachige Medien; der Weltspiegel soll den Blick von außen zeigen.
+- Verweise ausschließlich über die Quellennummer "q". Nenne keine anderen Medien und keine URLs.
 
 Antworte als reines JSON:
 {{
@@ -220,7 +329,7 @@ Quellen:
 
 def build_weltspiegel(entries, sources):
     """Verknüpft die Modell-Zusammenfassungen mit den ECHTEN Quelldaten. Ungültige Verweise fallen weg."""
-    result, used = [], set()
+    result, used, medien = [], set(), set()
     for e in entries or []:
         try:
             q = int(e.get("q"))
@@ -228,16 +337,24 @@ def build_weltspiegel(entries, sources):
             continue
         if q in used or not (0 <= q < len(sources)):
             continue
-        used.add(q)
         src = sources[q]
+        if src["medium"] in medien:
+            continue
+        used.add(q)
+        medien.add(src["medium"])
         result.append({
             "medium": f"{src['medium']}, {src['land']}",
             "tenor": str(e.get("tenor", "")).strip() or "Bericht",
             "zusammenfassung": str(e.get("zusammenfassung", "")).strip(),
             "titel_original": src["titel"],
             "url": src["url"],
+            "_international": src["land"] not in DEUTSCHSPRACHIG,
         })
-    return result
+    # Internationale Stimmen nach vorn, maximal 4 Einträge
+    result.sort(key=lambda r: not r["_international"])
+    for r in result:
+        del r["_international"]
+    return result[:4]
 
 
 # ---------------------------------------------------------------------------
@@ -344,6 +461,8 @@ def main():
         if len(sources) < 1:
             print("   Keine gültigen Quellen – Thema übersprungen.")
             continue
+        n_voll = anreichern(sources)
+        print(f"   {len(sources)} Quellen, davon {n_voll} mit Volltext")
         try:
             essay = write_essay(topic, sources)
         except Exception as ex:
@@ -355,7 +474,7 @@ def main():
         if woerter < 300:
             print(f"   Essay zu kurz ({woerter} Wörter) – übersprungen.")
             continue
-        print(f"   {woerter} Wörter, {len(sources)} Quellen")
+        print(f"   {woerter} Wörter")
 
         artikel.append({
             "id": f"essay-{nr}",
@@ -369,7 +488,8 @@ def main():
             "historische_anker": essay.get("historische_anker", {}),
             "inhalt_html": html,
             "weltspiegel": build_weltspiegel(essay.get("weltspiegel"), sources),
-            "quellen": [{"medium": s["medium"], "land": s["land"], "titel": s["titel"], "url": s["url"]} for s in sources],
+            "quellen": [{"medium": s["medium"], "land": s["land"], "titel": s["titel"], "url": s["url"],
+                         "volltext": bool(s.get("volltext"))} for s in sources],
         })
         time.sleep(8)
 
