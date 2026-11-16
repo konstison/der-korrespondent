@@ -613,7 +613,8 @@
       <h2 id="legalTitle">Impressum & Rechtliches</h2>
       <p><strong>Angaben gemäß § 5 DDG:</strong><br>
       Konstantin Peucker<br>
-      München<br>
+      Hofmannstraße 66<br>
+      81370 München<br>
       E-Mail: <a href="mailto:konstantin.radiologie@gmail.com">konstantin.radiologie@gmail.com</a></p>
 
       <h3>Redaktionelle Verantwortung & Entstehung der Inhalte</h3>
@@ -876,7 +877,7 @@
       const own = selectedRessorts();
       let list;
       if (own && all.some(a => a.ressort)) {
-        list = all.filter(a => a.rueckblick || own.includes(a.ressort));
+        list = all.filter(a => a.rueckblick || a.glosse || own.includes(a.ressort));
       } else if (all.some(a => 'standard' in a)) {
         list = all.filter(a => a.standard);
       } else {
@@ -928,7 +929,7 @@
       const all = currentEdition.artikel || [];
       const own = selectedRessorts();
       const chosen = own || all.filter(a => a.standard).map(a => a.ressort);
-      document.getElementById('ressortList').innerHTML = all.filter(a => a.ressort && !a.rueckblick).map(a => {
+      document.getElementById('ressortList').innerHTML = all.filter(a => a.ressort && !a.rueckblick && !a.glosse).map(a => {
         const v = view(a);
         return `<li><label><input type="checkbox" value="${esc(a.ressort)}" ${chosen.includes(a.ressort) ? 'checked' : ''}>
           <span>${esc(v.rubrik)}<small>${esc(v.titel)}</small></span></label></li>`;

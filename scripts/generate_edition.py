@@ -582,6 +582,34 @@ Quellen:
     return call_gemini_json(prompt)
 
 
+def write_glosse(artikel):
+    """Kurze tägliche Glosse auf Basis der (bereits faktengeprüften) Essays dieser Ausgabe."""
+    material = [{"ressort": a["rubrik"], "titel": a["titel"],
+                 "kernaussagen": a.get("kurzfassung") or [a.get("leitthese", "")]} for a in artikel if not a.get("rueckblick")]
+    prompt = f"""
+Du schreibst „Die Glosse“ einer europäischen Qualitätszeitung – die tägliche kurze Spalte am Ende der Ausgabe,
+in der Tradition von Tucholsky, Kästner und Polgar.
+
+AUFGABE: 300–420 Wörter. Nimm EIN Thema des Tages (oder verbinde zwei überraschend) und betrachte es mit
+geschliffener Ironie, Understatement und einer Schlusspointe, die nachklingt. Hier darf der Humor die Hauptrolle
+spielen – aber auf höchstem sprachlichem Niveau, nie albern, nie zynisch.
+
+REGELN:
+- Tatsachen ausschließlich aus dem Material unten; erfinde keine Zitate, Zahlen oder Ereignisse.
+- Spott trifft Machtgehabe, Bürokratie, Phrasen, Widersprüche – nie Opfer, nie Leid, nie Herkunft, Religion
+  oder Körper. Keine herabwürdigenden Etiketten für reale Personen.
+- Kein Thema aus Krieg, Terror, Katastrophen oder Krankheit wählen.
+- Form: 3–5 Absätze als <p>, keine Zwischenüberschriften, keine Ausrufezeichen, keine Kalauer.
+
+Antworte als JSON:
+{{"titel": "Kurzer, pointierter Titel", "untertitel": "Ein Satz", "inhalt_html": "<p>…</p>"}}
+
+Material (Themen dieser Ausgabe):
+{json.dumps(material, ensure_ascii=False)}
+"""
+    return call_gemini_json(prompt, versuche=3, aufgabe="essay")
+
+
 def write_wochenrueckblick(woche):
     prompt = f"""
 Du bist Chefredakteur einer europäischen Qualitätszeitung (Stil: NZZ / FAZ) und schreibst den
@@ -947,6 +975,24 @@ def main():
     # Standardauswahl: die gewichtigsten Essays (Rückblick immer dabei)
     for a in sorted(artikel, key=lambda x: -x["gewicht"])[:STANDARD_ANZAHL]:
         a["standard"] = True
+    for n, a in enumerate(artikel, start=1):
+        a["id"] = f"essay-{n}"
+
+    # Die Glosse: kurze humoristische Spalte am Ende der Ausgabe (immer sichtbar)
+    print("4b. Die Glosse...")
+    try:
+        g = write_glosse(artikel)
+        if wortzahl(g.get("inhalt_html", "")) >= 150:
+            a = erstelle_artikel(g, nr=len(artikel) + 1, ressort_id="glosse", ressort_name="Die Glosse",
+                                 gewicht=0, sources=[], schlagworte=["Glosse"], bild=None, slugs=slugs)
+            a["glosse"] = True
+            a["standard"] = True
+            a["faktencheck"] = {"geprueft": False, "hinweis": "Beruht auf den geprüften Essays dieser Ausgabe"}
+            artikel.append(a)
+            print(f"   „{a['titel']}“ ({a['woerter']} Wörter)")
+        pause()
+    except Exception as ex:
+        print(f"   Glosse fehlgeschlagen: {ex}")
     for n, a in enumerate(artikel, start=1):
         a["id"] = f"essay-{n}"
 
