@@ -705,7 +705,7 @@
         <details class="quellen-liste" style="margin-top:2rem; font-family:var(--font-ui); font-size:0.8rem; color:var(--ink-secondary);">
           <summary style="cursor:pointer; font-weight:600;">Quellenbasis dieses Essays (${art.quellen.length})</summary>
           <ul style="margin:0.8rem 0 0 1.2rem; line-height:1.7;">
-            ${art.quellen.map(q => `<li>${q.medium} (${q.land}): <a href="${q.url}" target="_blank" rel="noopener noreferrer" style="color:inherit;">${q.titel}</a></li>`).join('')}
+            ${art.quellen.map(q => `<li>${q.medium} (${q.land}): <a href="${q.url}" target="_blank" rel="noopener noreferrer" style="color:inherit;">${q.titel}</a>${q.volltext ? ' <span style="color:var(--ink-muted);">· Volltext ausgewertet</span>' : ''}</li>`).join('')}
           </ul>
         </details>` : '';
 
