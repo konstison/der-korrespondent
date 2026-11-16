@@ -7,10 +7,10 @@ on:
   workflow_dispatch: # manueller Start über den Actions-Tab
     inputs:
       schluessel:
-        description: 'API-Schlüssel: bezahlt = GEMINI_API_KEY, frei = GEMINI_API_KEY_FREE (Projekt ohne Abrechnung)'
+        description: 'automatisch = erst kostenlos, bezahlt nur als Ausweichlösung; bezahlt / frei = nur dieser Schlüssel'
         type: choice
-        options: [bezahlt, frei]
-        default: bezahlt
+        options: [automatisch, bezahlt, frei]
+        default: automatisch
       testlauf:
         description: 'Testlauf: nur erzeugen und Kosten messen, nichts veröffentlichen'
         type: boolean
@@ -43,7 +43,9 @@ jobs:
 
       - name: Ausgabe generieren
         env:
-          GEMINI_API_KEY: ${{ (inputs.schluessel == 'frei' || vars.SCHLUESSEL == 'frei') && secrets.GEMINI_API_KEY_FREE || secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_FREE: ${{ secrets.GEMINI_API_KEY_FREE }}
+          SCHLUESSEL: ${{ inputs.schluessel || vars.SCHLUESSEL || 'automatisch' }}
         run: python scripts/generate_edition.py
 
       - name: Statische Seiten bauen (Essays, Archiv, Dossiers, Feed, Sitemap)

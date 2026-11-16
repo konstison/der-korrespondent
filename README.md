@@ -22,7 +22,9 @@ Live: https://konstison.github.io/der-korrespondent/
 
 | Wo | Was |
 |---|---|
-| Repository-Secret `GEMINI_API_KEY` | API-Schlüssel für Gemini |
+| Repository-Secret `GEMINI_API_KEY_FREE` | Gemini-Schlüssel aus einem Projekt **ohne** Abrechnung (wird zuerst genutzt, kostenlos) |
+| Repository-Secret `GEMINI_API_KEY` | Gemini-Schlüssel mit Abrechnung (nur Ausweichlösung bei Überlastung oder erschöpftem Gratis-Kontingent) |
+| Repository-Variable `SCHLUESSEL` (optional) | `automatisch` (Standard), `bezahlt` oder `frei` |
 | Repository-Variable `SITE_URL` (optional) | Basis-URL, z. B. nach Umzug auf eigene Domain |
 | `RSS_FEEDS`, `RESSORTS`, `STANDARD_ANZAHL` in `generate_edition.py` | Quellen, Ressorts, Anzahl Essays in der Standardauswahl |
 | Umgebungsvariable `ENGLISCH=0` | englische Fassung abschalten |
