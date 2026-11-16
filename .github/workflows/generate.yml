@@ -11,6 +11,11 @@ on:
         type: choice
         options: [automatisch, bezahlt, frei]
         default: automatisch
+      modus:
+        description: 'kompakt = 5 Essays auf Deutsch + Glosse (Standard); advanced = 8 Ressorts + Englisch'
+        type: choice
+        options: [kompakt, advanced]
+        default: kompakt
       testlauf:
         description: 'Testlauf: nur erzeugen und Kosten messen, nichts veröffentlichen'
         type: boolean
@@ -46,6 +51,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_FREE: ${{ secrets.GEMINI_API_KEY_FREE }}
           SCHLUESSEL: ${{ inputs.schluessel || vars.SCHLUESSEL || 'automatisch' }}
+          MODUS: ${{ inputs.modus || vars.MODUS || 'kompakt' }}
         run: python scripts/generate_edition.py
 
       - name: Statische Seiten bauen (Essays, Archiv, Dossiers, Feed, Sitemap)
