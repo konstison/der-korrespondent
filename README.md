@@ -1,7 +1,8 @@
 # Der Korrespondent
 
-Eine automatisch erstellte, analytische Tageszeitung: jeden Morgen ein Essay pro Ressort (acht Ressorts),
-historisch eingeordnet, mit internationaler Presseschau („Weltspiegel“), Faktencheck und englischer Fassung.
+Eine automatisch erstellte, analytische Tageszeitung: jeden Morgen fünf Essays zu den gewichtigsten Themen des Tages
+(im Modus „advanced“: ein Essay pro Ressort, acht Ressorts, plus englische Fassung), historisch eingeordnet, mit
+internationaler Presseschau („Weltspiegel“), Faktencheck und einer Glosse.
 
 Live: https://konstison.github.io/der-korrespondent/
 
@@ -27,7 +28,8 @@ Live: https://konstison.github.io/der-korrespondent/
 | Repository-Variable `SCHLUESSEL` (optional) | `automatisch` (Standard), `bezahlt` oder `frei` |
 | Repository-Variable `SITE_URL` (optional) | Basis-URL, z. B. nach Umzug auf eigene Domain |
 | `RSS_FEEDS`, `RESSORTS`, `STANDARD_ANZAHL` in `generate_edition.py` | Quellen, Ressorts, Anzahl Essays in der Standardauswahl |
-| Umgebungsvariable `ENGLISCH=0` | englische Fassung abschalten |
+| Repository-Variable `MODUS` (optional) | `kompakt` (Standard: 5 Essays auf Deutsch + Glosse) oder `advanced` (8 Ressorts, Ressortwahl, englische Fassung) |
+| Umgebungsvariablen `ENGLISCH`, `GLOSSE` | `0`/`1` überschreibt die Voreinstellung des Modus |
 
 ## Workflows
 

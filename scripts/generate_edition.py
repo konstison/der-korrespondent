@@ -898,7 +898,13 @@ def erstelle_artikel(essay, *, nr, ressort_id, ressort_name, gewicht, sources, s
 def main():
     jetzt = datetime.now(TZ)
     heute = jetzt.strftime("%Y-%m-%d")
-    mit_englisch = os.environ.get("ENGLISCH", "1") != "0"
+    # MODUS=kompakt (Standard): 5 Essays auf Deutsch + Glosse – passt bequem ins Gratis-Kontingent.
+    # MODUS=advanced: alle 8 Ressorts, englische Fassung, Ressortwahl für Leser.
+    modus = os.environ.get("MODUS", "kompakt").strip().lower() or "kompakt"
+    advanced = modus == "advanced"
+    mit_englisch = os.environ.get("ENGLISCH", "1" if advanced else "0") != "0"
+    mit_glosse = os.environ.get("GLOSSE", "1") != "0"
+    print(f"Modus: {'Advanced' if advanced else 'Kompakt'} (Englisch: {'ja' if mit_englisch else 'nein'}, Glosse: {'ja' if mit_glosse else 'nein'})")
 
     items = fetch_rss_headlines()
     if len(items) < 20:
@@ -909,6 +915,14 @@ def main():
     themen = choose_topics(items, frueher)
     ressort_name = {r["id"]: r["name"] for r in RESSORTS}
     reihenfolge = {r["id"]: n for n, r in enumerate(RESSORTS)}
+    if not advanced:
+        # Die Chefredaktion bewertet weiterhin alle Ressorts; geschrieben werden nur die gewichtigsten Themen.
+        def _gewicht(t):
+            try:
+                return float(t.get("gewicht", 0))
+            except (TypeError, ValueError):
+                return 0.0
+        themen = sorted(themen, key=_gewicht, reverse=True)[:STANDARD_ANZAHL]
     themen.sort(key=lambda t: reihenfolge[t["ressort"]])
     print(f"   {len(themen)} Themen: " + "; ".join(f"{t['ressort']}: {t['thema']}" for t in themen))
     pause()
@@ -979,8 +993,10 @@ def main():
         a["id"] = f"essay-{n}"
 
     # Die Glosse: kurze humoristische Spalte am Ende der Ausgabe (immer sichtbar)
-    print("4b. Die Glosse...")
+    print("4b. Die Glosse..." if mit_glosse else "4b. Glosse abgeschaltet.")
     try:
+        if not mit_glosse:
+            raise StopIteration
         g = write_glosse(artikel)
         if wortzahl(g.get("inhalt_html", "")) >= 150:
             a = erstelle_artikel(g, nr=len(artikel) + 1, ressort_id="glosse", ressort_name="Die Glosse",
@@ -991,6 +1007,8 @@ def main():
             artikel.append(a)
             print(f"   „{a['titel']}“ ({a['woerter']} Wörter)")
         pause()
+    except StopIteration:
+        pass
     except Exception as ex:
         print(f"   Glosse fehlgeschlagen: {ex}")
     for n, a in enumerate(artikel, start=1):
@@ -1014,6 +1032,7 @@ def main():
         "modell": MODEL_NAME,
         "modelle": sorted(NUTZUNG.keys()),
         "tarife": TARIFE,
+        "modus": "advanced" if advanced else "kompakt",
         "ressorts": [{"id": r["id"], "name": r["name"]} for r in RESSORTS],
         "artikel": artikel,
     }

@@ -84,6 +84,7 @@
     }
     button { font: inherit; color: inherit; }
     a { color: var(--accent); }
+    [hidden] { display: none !important; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
     /* ---------- Bedienelemente ---------- */
@@ -928,9 +929,19 @@
     function updateSelectionInfo() {
       const all = currentEdition.artikel || [];
       const hasRessorts = all.some(a => a.ressort);
-      document.getElementById('ressortButton').hidden = !hasRessorts;
+      // Ressortwahl nur, wenn die Ausgabe mehr Essays hat, als standardmäßig gezeigt werden (Advanced-Modus)
+      const waehlbar = hasRessorts && all.some(a => !a.standard);
+      document.getElementById('ressortButton').hidden = !waehlbar;
+      document.querySelectorAll('.menu-links button[data-i18n="chooseSections"]').forEach(b => b.hidden = !waehlbar);
       document.getElementById('selectionInfo').textContent =
-        hasRessorts ? t('selection')(visibleArticles.length, all.length, !!selectedRessorts()) : '';
+        waehlbar ? t('selection')(visibleArticles.length, all.length, !!selectedRessorts()) : '';
+      // Sprachumschalter nur, wenn es eine englische Fassung gibt
+      const hatEnglisch = all.some(a => a.en && a.en.inhalt_html);
+      document.querySelectorAll('.lang-switch').forEach(el => {
+        el.hidden = !hatEnglisch;
+        const row = el.closest('.menu-row'); if (row) row.hidden = !hatEnglisch;
+      });
+      if (!hatEnglisch && lang !== 'de') { lang = 'de'; applyLang(false); }
     }
 
     function renderNav() {
