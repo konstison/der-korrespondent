@@ -420,6 +420,74 @@
       .colophon-links { align-items: flex-start; }
       .legal-inner { padding: 1.6rem; }
     }
+    /* ---------- Smartphone-Bedienung ---------- */
+    .mobile-only { display: none !important; }
+    .menu-grid { display: flex; flex-direction: column; margin-top: 0.4rem; }
+    .menu-row {
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--border-hairline);
+      font-family: var(--font-ui); font-size: 0.9rem;
+    }
+    .menu-row .archive-select { max-width: 60%; font-size: 0.85rem; padding: 0.55rem 0.6rem; }
+    .menu-links { display: flex; flex-direction: column; margin-top: 0.6rem; }
+    .menu-links a, .menu-links button {
+      text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border-hairline);
+      padding: 0.85rem 0; font-family: var(--font-ui); font-size: 0.95rem; color: var(--ink-primary);
+      text-decoration: none; cursor: pointer;
+    }
+    .text-size-control.big button { min-width: 3rem; min-height: 2.75rem; font-size: 1.1rem; }
+    .text-size-control.big .ts-value { font-size: 0.85rem; }
+    .text-size-control.wide { display: flex; width: 100%; margin-top: 0.6rem; }
+    .text-size-control.wide button { flex: 1; min-height: 3.2rem; }
+    .ui-btn.big { min-height: 2.75rem; min-width: 2.75rem; justify-content: center; font-size: 0.9rem; }
+
+    .bottom-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
+      background: var(--bg-paper); border-top: 1px solid var(--border-hairline);
+      display: flex; align-items: center; gap: 0.2rem;
+      padding: 0.35rem 0.6rem calc(0.35rem + env(safe-area-inset-bottom));
+      transform: translateY(0); transition: transform 0.25s ease;
+    }
+    .bottom-bar.hidden { transform: translateY(110%); }
+    .bottom-progress { position: absolute; top: -1px; left: 0; height: 2px; width: 0; background: var(--accent); transition: width 0.1s linear; }
+    .bb-btn {
+      width: 2.85rem; height: 2.85rem; display: inline-flex; align-items: center; justify-content: center;
+      background: none; border: 0; color: var(--ink-primary); cursor: pointer; border-radius: 2px; flex-shrink: 0;
+    }
+    .bb-btn:disabled { opacity: 0.3; }
+    .bb-btn[aria-pressed="true"] { color: var(--accent); }
+    .bb-aa { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; }
+    .bb-center {
+      flex: 1; min-width: 0; height: 2.85rem; background: none; border: 0; cursor: pointer; color: var(--ink-primary);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15;
+      font-family: var(--font-ui); font-size: 0.78rem; font-weight: 600;
+    }
+    .bb-rubrik {
+      font-weight: 500; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .bb-sep { width: 1px; height: 1.6rem; background: var(--border-hairline); margin: 0 0.15rem; }
+
+    @media (max-width: 768px) {
+      .mobile-only { display: inline-flex !important; }
+      .bottom-bar.mobile-only { display: flex !important; }
+      body { padding-bottom: calc(3.6rem + env(safe-area-inset-bottom)); }
+      .reading-ribbon { display: none; }
+      /* Kopf: eine schlanke Zeile statt vier */
+      .masthead-meta { flex-wrap: nowrap; border-bottom: 0; padding-bottom: 0; }
+      .masthead-meta .meta-controls, .masthead-meta .meta-tagline { display: none !important; }
+      .meta-date { width: auto; font-size: 0.64rem; }
+      .menu-btn { margin-left: auto; min-width: 2.75rem; min-height: 2.75rem; justify-content: center; padding: 0; }
+      .masthead-title-wrap { padding: 0.2rem 0 0.8rem; }
+      .masthead-kicker { display: none; }
+      h1.paper-name { font-size: clamp(1.45rem, 7vw, 2rem); letter-spacing: 0.04em; white-space: nowrap; }
+      #ressortButton { display: none; }
+      .edition-bar-head { padding-top: 0.45rem; }
+      .article-tools .audio-btn { display: none; }
+      .toast { bottom: calc(4.4rem + env(safe-area-inset-bottom)); }
+      .sheet { padding-bottom: calc(1.6rem + env(safe-area-inset-bottom)); }
+    }
+
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
@@ -449,6 +517,9 @@
       <div class="meta-group meta-date">
         <span id="editionDate">Lade Ausgabe …</span>
       </div>
+      <button class="ui-btn mobile-only menu-btn" type="button" onclick="openSheet('menuSheet')" aria-label="Menü und Einstellungen">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"></path></svg>
+      </button>
       <span class="meta-tagline" data-i18n="tagline">Deutschland · Europa · Weltspiegel</span>
       <div class="meta-group meta-controls">
         <select id="archiveSelect" class="archive-select" onchange="loadArchiveEdition(this.value)" aria-label="Ausgabe wählen">
@@ -463,7 +534,7 @@
           <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen">100 %</button>
           <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern">A+</button>
         </div>
-        <button class="ui-btn" id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Abendmodus umschalten">☾</button>
+        <button class="ui-btn theme-btn" id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Abendmodus umschalten">☾</button>
       </div>
     </div>
     <div class="masthead-title-wrap">
@@ -561,6 +632,74 @@
     </div>
   </div>
 
+  <!-- Smartphone: Menü -->
+  <div class="sheet" id="menuSheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <div class="sheet-handle"></div>
+    <h2 id="menuTitle">Der Korrespondent</h2>
+    <div class="menu-grid">
+      <label class="menu-row"><span data-i18n="editionLabel">Ausgabe</span>
+        <select id="archiveSelectMobile" class="archive-select" onchange="loadArchiveEdition(this.value); closeSheets()"></select>
+      </label>
+      <div class="menu-row"><span data-i18n="languageLabel">Sprache</span>
+        <div class="lang-switch" role="group" aria-label="Sprache">
+          <button type="button" data-lang="de" onclick="setLang('de')" aria-pressed="true">DE</button>
+          <button type="button" data-lang="en" onclick="setLang('en')" aria-pressed="false">EN</button>
+        </div>
+      </div>
+      <div class="menu-row"><span data-i18n="textSizeLabel">Schriftgröße</span>
+        <div class="text-size-control big" role="group" aria-label="Schriftgröße">
+          <button type="button" class="ts-minus" onclick="changeTextSize(-1)" aria-label="Schrift verkleinern">A−</button>
+          <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen">100 %</button>
+          <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern">A+</button>
+        </div>
+      </div>
+      <div class="menu-row"><span data-i18n="themeLabel">Abendmodus</span>
+        <button class="ui-btn theme-btn big" type="button" onclick="toggleTheme()" aria-label="Abendmodus umschalten">☾</button>
+      </div>
+    </div>
+    <nav class="menu-links">
+      <button type="button" onclick="closeSheets(); openRessortSheet()" data-i18n="chooseSections">Ressorts wählen</button>
+      <a href="archiv.html" data-i18n="archive">Archiv</a>
+      <a href="themen/index.html" data-i18n="dossiers">Dossiers</a>
+      <a href="#impressum" onclick="closeSheets(); openLegalModal(); return false;" data-i18n="legal">Impressum & Datenschutz</a>
+    </nav>
+  </div>
+
+  <!-- Smartphone: Schriftgröße & Modus -->
+  <div class="sheet" id="textSheet" role="dialog" aria-modal="true" aria-labelledby="textSheetTitle">
+    <div class="sheet-handle"></div>
+    <h2 id="textSheetTitle" data-i18n="textSizeLabel">Schriftgröße</h2>
+    <div class="text-size-control big wide" role="group" aria-label="Schriftgröße">
+      <button type="button" class="ts-minus" onclick="changeTextSize(-1)" aria-label="Schrift verkleinern">A−</button>
+      <button type="button" class="ts-value" onclick="changeTextSize(0)" aria-label="Schriftgröße zurücksetzen">100 %</button>
+      <button type="button" class="ts-plus" onclick="changeTextSize(1)" aria-label="Schrift vergrößern">A+</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="ui-btn theme-btn big" type="button" onclick="toggleTheme()" aria-label="Abendmodus umschalten">☾</button>
+      <button class="ui-btn big" type="button" onclick="closeSheets()" data-i18n="close">Schließen</button>
+    </div>
+  </div>
+
+  <!-- Smartphone: Leiste unten (mit dem Daumen erreichbar) -->
+  <nav class="bottom-bar mobile-only" id="bottomBar" aria-label="Lesesteuerung">
+    <div class="bottom-progress" id="bottomProgress"></div>
+    <button type="button" class="bb-btn" id="bbPrev" onclick="renderArticle(activeIndex - 1)" aria-label="Vorheriger Essay">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </button>
+    <button type="button" class="bb-center" onclick="window.scrollTo({top: document.querySelector('.edition-bar').offsetTop, behavior: 'smooth'})" aria-label="Zur Essay-Übersicht">
+      <span id="bbCount">1 / 5</span>
+      <span id="bbRubrik" class="bb-rubrik"></span>
+    </button>
+    <button type="button" class="bb-btn" id="bbNext" onclick="renderArticle(activeIndex + 1)" aria-label="Nächster Essay">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </button>
+    <span class="bb-sep" aria-hidden="true"></span>
+    <button type="button" class="bb-btn audio-btn-icon" id="bbAudio" onclick="toggleAudio()" aria-label="Vorlesen" hidden>
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M5 3.2v11.6L14.5 9z" fill="currentColor"></path></svg>
+    </button>
+    <button type="button" class="bb-btn bb-aa" onclick="openSheet('textSheet')" aria-label="Schriftgröße und Abendmodus">Aa</button>
+  </nav>
+
   <div class="toast" id="toast" role="status"></div>
 
   <script>
@@ -586,6 +725,7 @@
         fcLog: n => `Prüfprotokoll des Faktenchecks (${n})`, next: 'Nächster Essay', back: 'Zurück zum ersten Essay',
         swipe: '← Wischen für den nächsten Essay →', noEn: 'This essay is only available in German.',
         previously: 'Fortsetzung', readTime: 'Min. Lesezeit', minRead: 'Min. Lesezeit', staticPage: 'Einzelseite',
+        editionLabel: 'Ausgabe', languageLabel: 'Sprache', textSizeLabel: 'Schriftgröße', themeLabel: 'Abendmodus',
         noAudio: 'Ihr Browser unterstützt keine Sprachausgabe.', audioPlaying: 'Vorlesen läuft …', sundayNote: 'Wochenrückblick'
       },
       en: {
@@ -606,6 +746,7 @@
         fcLog: n => `Fact-check log (${n})`, next: 'Next essay', back: 'Back to the first essay',
         swipe: '← Swipe for the next essay →', noEn: 'This essay is only available in German.',
         previously: 'Follow-up', readTime: 'min read', minRead: 'min read', staticPage: 'Single page',
+        editionLabel: 'Edition', languageLabel: 'Language', textSizeLabel: 'Text size', themeLabel: 'Night mode',
         noAudio: 'Your browser does not support speech output.', audioPlaying: 'Reading aloud …', sundayNote: 'Week in review'
       }
     };
@@ -682,14 +823,22 @@
     async function loadArchiveIndex() {
       try {
         const index = await fetchJson('data/archiv/index.json');
-        const select = document.getElementById('archiveSelect');
-        index.filter(e => e.datei !== `${todayEdition.datum_iso}.json`).forEach(e => {
-          const opt = document.createElement('option');
-          opt.value = e.datei;
-          opt.textContent = `${formatDate(e.datum)} · Nr. ${e.ausgabe_nr}`;
-          select.appendChild(opt);
+        ['archiveSelect', 'archiveSelectMobile'].forEach(id => {
+          const select = document.getElementById(id);
+          if (!select) return;
+          if (!select.options.length) {
+            const today = document.createElement('option');
+            today.value = ''; today.textContent = t('today');
+            select.appendChild(today);
+          }
+          index.filter(e => e.datei !== `${todayEdition.datum_iso}.json`).forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.datei;
+            opt.textContent = `${formatDate(e.datum)} · Nr. ${e.ausgabe_nr}`;
+            select.appendChild(opt);
+          });
+          if (currentEdition !== todayEdition && currentEdition.datum_iso) select.value = `${currentEdition.datum_iso}.json`;
         });
-        if (currentEdition !== todayEdition && currentEdition.datum_iso) select.value = `${currentEdition.datum_iso}.json`;
       } catch (e) { /* Archiv optional */ }
     }
 
@@ -807,6 +956,7 @@
       const art = visibleArticles[activeIndex];
       const v = view(art);
       renderNav();
+      updateBottomBar(v);
 
       document.getElementById('ribbonTitle').textContent = (v.titel || '').split(':')[0];
       const minutes = (art.lesezeit || '').match(/\d+/);
@@ -832,7 +982,7 @@
 
       const kurz = v.kurzfassung && v.kurzfassung.length ? `
         <div class="kurzfassung"><strong>${t('inBrief')}</strong><ul>${v.kurzfassung.map(k => `<li>${esc(k)}</li>`).join('')}</ul></div>` : '';
-      const thesisInline = v.leitthese ? `
+      const thesisInline = v.leitthese && !(v.kurzfassung && v.kurzfassung.length) ? `
         <div class="kurzfassung thesis-inline"><strong>${t('thesis')}</strong><p style="margin-top:0.3rem">${esc(v.leitthese)}</p></div>` : '';
 
       // Weltspiegel: Medium, URL, Originaltitel aus den deutschen Daten; Text ggf. übersetzt
@@ -920,6 +1070,13 @@
         const top = document.querySelector('.edition-bar').getBoundingClientRect().top + window.scrollY;
         window.scrollTo({ top: isMobile() ? top : 0, behavior: 'smooth' });
       }
+    }
+
+    function updateBottomBar(v) {
+      document.getElementById('bbCount').textContent = `${activeIndex + 1} / ${visibleArticles.length}`;
+      document.getElementById('bbRubrik').textContent = v.rubrik || '';
+      document.getElementById('bbPrev').disabled = activeIndex === 0;
+      document.getElementById('bbNext').disabled = activeIndex >= visibleArticles.length - 1;
     }
 
     function slugify(s) {
@@ -1026,7 +1183,7 @@
         if (typeof val === 'string') el.textContent = val;
       });
       document.querySelectorAll('.lang-switch button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
-      document.querySelector('#archiveSelect option[value=""]').textContent = t('today');
+      document.querySelectorAll('#archiveSelect option[value=""], #archiveSelectMobile option[value=""]').forEach(o => o.textContent = t('today'));
       if (rerender && currentEdition) {
         editionDateLine();
         updateSelectionInfo();
@@ -1077,9 +1234,10 @@
     }
     function updateThemeButton() {
       const evening = document.documentElement.getAttribute('data-theme') === 'evening';
-      const b = document.getElementById('themeToggle');
-      b.textContent = evening ? '☀' : '☾';
-      b.title = evening ? 'Tagesmodus' : 'Abendmodus';
+      document.querySelectorAll('.theme-btn').forEach(b => {
+        b.textContent = evening ? '☀' : '☾';
+        b.title = evening ? 'Tagesmodus' : 'Abendmodus';
+      });
     }
 
     // =====================================================================
@@ -1092,7 +1250,7 @@
 
     function setupAudio() {
       if (!audioSupported) return;
-      document.querySelectorAll('.audio-btn').forEach(b => b.hidden = false);
+      document.querySelectorAll('.audio-btn, .audio-btn-icon').forEach(b => b.hidden = false);
       synth.getVoices();
       if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = () => synth.getVoices();
     }
@@ -1151,6 +1309,14 @@
     }
 
     function updateAudioButtons() {
+      const bb = document.getElementById('bbAudio');
+      if (bb) {
+        bb.setAttribute('aria-pressed', audioState !== 'idle');
+        bb.setAttribute('aria-label', audioState === 'playing' ? t('pause') : t('listen'));
+        bb.innerHTML = audioState === 'playing'
+          ? '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M5 3.5h2.6v11H5zM10.4 3.5H13v11h-2.6z" fill="currentColor"></path></svg>'
+          : '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M5 3.2v11.6L14.5 9z" fill="currentColor"></path></svg>';
+      }
       document.querySelectorAll('.audio-btn').forEach(b => {
         const playing = audioState === 'playing';
         b.setAttribute('aria-pressed', audioState !== 'idle');
@@ -1178,12 +1344,20 @@
     }
 
     // Lesefortschritt & aktuelles Kapitel
+    let lastScrollY = 0;
     window.addEventListener('scroll', () => {
       const article = document.getElementById('articleContainer');
       const start = article.offsetTop, end = start + article.offsetHeight - window.innerHeight;
       const progress = end > start ? Math.min(100, Math.max(0, (window.scrollY - start) / (end - start) * 100)) : 0;
       document.getElementById('readingRibbon').classList.toggle('visible', window.scrollY > start + 120);
       document.getElementById('ribbonProgress').style.width = `${progress}%`;
+      document.getElementById('bottomProgress').style.width = `${progress}%`;
+      const bar = document.getElementById('bottomBar');
+      const y = window.scrollY;
+      const nearEnd = y + window.innerHeight > document.documentElement.scrollHeight - 80;
+      bar.classList.toggle('hidden', y > lastScrollY + 4 && y > 400 && !nearEnd && audioState === 'idle');
+      if (y < lastScrollY - 4 || nearEnd) bar.classList.remove('hidden');
+      lastScrollY = y;
       let chap = '';
       document.querySelectorAll('.essay-body h2').forEach(h => { if (h.getBoundingClientRect().top < 140) chap = h.textContent; });
       document.getElementById('ribbonChapter').textContent = chap;
