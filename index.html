@@ -538,7 +538,7 @@
       <p style="margin-bottom:1rem;"><strong>Angaben gemäß § 5 DDG / TMG:</strong><br>
       Konstantin Peucker<br>
       München<br>
-      E-Mail: [Deine E-Mail-Adresse]</p>
+      E-Mail: <a href="mailto:konstantin.radiologie@gmail.com" style="color:inherit;">konstantin.radiologie@gmail.com</a></p>
 
       <h3 style="font-family:var(--font-display); font-size:1.3rem; margin:1.5rem 0 0.5rem;">Haftung für Inhalte & Links</h3>
       <p style="margin-bottom:1rem;">Als Diensteanbieter sind wir für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Für Inhalte externer Links (im Bereich <em>Weltspiegel</em>) übernehmen wir keine Gewähr; für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.</p>
@@ -564,11 +564,7 @@
           titel: "Der Korrespondent: Die Architektonik des Wandels in einer vernetzten Welt",
           untertitel: "Ein Blick auf die Mechanismen hinter moderner Synthese, datengetriebener Publizistik und historischer Einordnung.",
           leitthese: "Wer offene Quellen präzise verdichtet, schafft einen verlässlichen Kompass jenseits tagesaktueller Aufregung.",
-          bild: {
-            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Abu_Dhabi_skyline_from_Marina_Mall.jpg/1280px-Abu_Dhabi_skyline_from_Marina_Mall.jpg",
-            beschreibung: "Archivaufnahme zur modernen Stadt- und Systemarchitektur.",
-            lizenz: "Foto: Wikimedia Commons (CC BY-SA)"
-          },
+          bild: null,
           historische_anker: {
             "enzyklopaedie": {
               titel: "Aufklärung & Enzyklopädisten",
@@ -612,6 +608,24 @@
 
       renderNav();
       renderArticle(0);
+    }
+
+    async function loadArchiveIndex() {
+      try {
+        const res = await fetch('data/archiv/index.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const index = await res.json();
+        const select = document.getElementById('archiveSelect');
+        const heute = currentEdition && currentEdition.datum_iso;
+        index
+          .filter(e => e.datei !== `${heute}.json`)
+          .forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.datei;
+            opt.textContent = `${e.datum} · Nr. ${e.ausgabe_nr}`;
+            select.appendChild(opt);
+          });
+      } catch (e) { /* Archiv optional */ }
     }
 
     async function loadArchiveEdition(filename) {
@@ -658,7 +672,7 @@
 
       const figureHtml = art.bild && art.bild.url ? `
         <figure class="hero-figure">
-          <img src="${art.bild.url}" alt="${art.bild.beschreibung}" loading="lazy" />
+          <img src="${art.bild.url}" alt="${escapeAttr(art.bild.beschreibung || '')}" loading="lazy" onerror="this.closest('figure').remove()" />
           <figcaption>
             <span>${art.bild.beschreibung}</span>
             <span>${art.bild.lizenz}</span>
@@ -678,6 +692,7 @@
             ${art.weltspiegel.map(item => `
               <div class="press-item">
                 <div class="press-meta">${item.medium} · ${item.tenor}</div>
+                ${item.titel_original ? `<p class="press-meta" style="font-style:italic;">„${item.titel_original}“</p>` : ''}
                 <p class="press-summary">${item.zusammenfassung}</p>
                 <a class="press-link" href="${item.url}" target="_blank" rel="noopener noreferrer">Zum Originalbeitrag &rarr;</a>
               </div>
@@ -685,6 +700,14 @@
           </div>
         </section>
       ` : '';
+
+      const quellenHtml = art.quellen && art.quellen.length ? `
+        <details class="quellen-liste" style="margin-top:2rem; font-family:var(--font-ui); font-size:0.8rem; color:var(--ink-secondary);">
+          <summary style="cursor:pointer; font-weight:600;">Quellenbasis dieses Essays (${art.quellen.length})</summary>
+          <ul style="margin:0.8rem 0 0 1.2rem; line-height:1.7;">
+            ${art.quellen.map(q => `<li>${q.medium} (${q.land}): <a href="${q.url}" target="_blank" rel="noopener noreferrer" style="color:inherit;">${q.titel}</a></li>`).join('')}
+          </ul>
+        </details>` : '';
 
       document.getElementById('articleContainer').innerHTML = `
         <div class="article-header">
@@ -699,9 +722,14 @@
         ${figureHtml}
         <div class="essay-body">${art.inhalt_html}</div>
         ${weltspiegelHtml}
+        ${quellenHtml}
       `;
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function escapeAttr(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     }
 
     function showHistory(key) {
@@ -746,7 +774,7 @@
       document.getElementById('ribbonChapter').textContent = currentChap;
     });
 
-    initNewspaper();
+    initNewspaper().then(loadArchiveIndex);
   </script>
 
   <!-- Service Worker Registrierung für PWA -->

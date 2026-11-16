@@ -2,40 +2,46 @@ name: Tägliche Ausgabe generieren
 
 on:
   schedule:
-    # Läuft jeden Morgen um 04:00 Uhr UTC (05:00 Uhr MEZ)
-    - cron: '0 4 * * *'
-  workflow_dispatch: # Ermöglicht den manuellen Start über den GitHub-Tab
+    # 04:15 UTC = 05:15 Uhr MEZ / 06:15 Uhr MESZ
+    - cron: '15 4 * * *'
+  workflow_dispatch: # manueller Start über den Actions-Tab
 
 permissions:
   contents: write
 
+# Verhindert, dass zwei Läufe gleichzeitig schreiben
+concurrency:
+  group: tagesausgabe
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Abhängigkeiten installieren
-        run: |
-          pip install google-genai
+        run: pip install -r requirements.txt
 
       - name: Ausgabe generieren
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          python scripts/generate_edition.py
+        run: python scripts/generate_edition.py
 
-      - name: Änderungen committen und pushen
+      - name: Ausgabe & Archiv veröffentlichen
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/ausgabe.json data/archiv/
-          git diff --staged --quiet || git commit -m "Tagesausgabe & Archiv aktualisiert: $(date +'%Y-%m-%d')"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet && exit 0
+          git commit -m "Tagesausgabe $(TZ=Europe/Berlin date +'%Y-%m-%d')"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push

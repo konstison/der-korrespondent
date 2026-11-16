@@ -1,4 +1,4 @@
-const CACHE_NAME = 'perspektive-v1';
+const CACHE_NAME = 'korrespondent-v2';
 
 // Installiert den Service Worker sofort
 self.addEventListener('install', (event) => {
