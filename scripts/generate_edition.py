@@ -245,15 +245,38 @@ def anreichern(sources):
 # ---------------------------------------------------------------------------
 # Gemini
 # ---------------------------------------------------------------------------
-_client = None
+# ---------------------------------------------------------------------------
+# Zwei Tarife: "frei" (Projekt ohne Abrechnung) zuerst, "bezahlt" als Sicherheitsnetz.
+#   - Tageskontingent im Free Tier erschöpft  -> Rest des Laufs über den bezahlten Schlüssel
+#   - Free Tier überlastet (503) mehrfach      -> diese Anfrage über den bezahlten Schlüssel
+#   - Nur ein Schlüssel vorhanden              -> wie bisher, notfalls Ausweichen auf Flash-Lite
+# SCHLUESSEL=bezahlt oder =frei erzwingt einen Tarif.
+# ---------------------------------------------------------------------------
+_clients = {}
 
 
-def _gemini():
-    global _client
-    if _client is None:
+def _verfuegbare_tarife():
+    modus = os.environ.get("SCHLUESSEL", "automatisch").strip().lower()
+    tarife = []
+    if modus in ("automatisch", "frei", "") and os.environ.get("GEMINI_API_KEY_FREE"):
+        tarife.append("frei")
+    if modus in ("automatisch", "bezahlt", "") and os.environ.get("GEMINI_API_KEY"):
+        tarife.append("bezahlt")
+    if not tarife and os.environ.get("GEMINI_API_KEY"):  # Fallback: irgendein Schlüssel
+        tarife.append("bezahlt")
+    return tarife
+
+
+TARIFE = _verfuegbare_tarife()
+FREI_GESPERRT = False   # Tageskontingent im Free Tier aufgebraucht
+
+
+def _gemini(tarif):
+    if tarif not in _clients:
         from google import genai
-        _client = genai.Client()
-    return _client
+        key = os.environ.get("GEMINI_API_KEY_FREE" if tarif == "frei" else "GEMINI_API_KEY")
+        _clients[tarif] = genai.Client(api_key=key)
+    return _clients[tarif]
 
 
 # Modelle je Aufgabe. Die "leichte" Stufe hat im Free Tier ein eigenes, viel größeres Tageskontingent.
@@ -270,13 +293,13 @@ PREISE = {
     "gemini-3.8-flash": (0.375, 1.875),
     "gemini-3.5-flash-lite": (0.10, 0.40),
 }
-NUTZUNG = {}            # modell -> {"anfragen", "eingabe", "ausgabe", "thinking"}
-ERSCHOEPFT = set()      # Modelle, deren Tageskontingent heute aufgebraucht ist
+NUTZUNG = {}            # "tarif/modell" -> {"anfragen", "eingabe", "ausgabe", "thinking"}
+ERSCHOEPFT = set()      # Modelle, deren Free-Tier-Tageskontingent erschöpft ist (nur ohne bezahlten Schlüssel relevant)
 
 
-def _buche(modell, resp):
+def _buche(tarif, modell, resp):
     u = getattr(resp, "usage_metadata", None)
-    n = NUTZUNG.setdefault(modell, {"anfragen": 0, "eingabe": 0, "ausgabe": 0, "thinking": 0})
+    n = NUTZUNG.setdefault(f"{tarif}/{modell}", {"anfragen": 0, "eingabe": 0, "ausgabe": 0, "thinking": 0})
     n["anfragen"] += 1
     if u:
         n["eingabe"] += getattr(u, "prompt_token_count", 0) or 0
@@ -286,22 +309,34 @@ def _buche(modell, resp):
 
 def _tageskontingent_erschoepft(msg):
     m = msg.lower()
-    return "429" in m and ("perday" in m or "per day" in m or "requests_per_day" in m or "daily" in m)
+    return "429" in m and ("perday" in m or "per day" in m or "requests_per_day" in m or "daily" in m
+                           or "free_tier" in m or "freetier" in m)
 
 
-def call_gemini_json(prompt, versuche=4, aufgabe="essay"):
-    """Ruft Gemini mit JSON-Antwort auf; fängt Limits/Überlastung ab und parst das JSON.
-    Ist das Tageskontingent des Hauptmodells erschöpft (Free Tier), wird auf das leichte Modell ausgewichen."""
+def _ueberlastet(msg):
+    return any(k in msg for k in ("503", "500", "UNAVAILABLE", "INTERNAL", "overloaded", "high demand"))
+
+
+def call_gemini_json(prompt, versuche=5, aufgabe="essay"):
+    """Ruft Gemini mit JSON-Antwort auf und parst das JSON. Bevorzugt den freien Tarif und weicht
+    bei erschöpftem Kontingent oder anhaltender Überlastung auf den bezahlten Tarif aus."""
+    global FREI_GESPERRT
     from google.genai import types
     config = types.GenerateContentConfig(response_mime_type="application/json")
+    if not TARIFE:
+        raise RuntimeError("Kein Gemini-API-Schlüssel gesetzt (GEMINI_API_KEY_FREE / GEMINI_API_KEY).")
     last_err = None
+    ueberlast_frei = 0
     for attempt in range(1, versuche + 1):
+        hat_bezahlt = "bezahlt" in TARIFE
+        nutze_frei = "frei" in TARIFE and not FREI_GESPERRT and not (hat_bezahlt and ueberlast_frei >= 2)
+        tarif = "frei" if nutze_frei else ("bezahlt" if hat_bezahlt else "frei")
         modell = AUFGABEN_MODELL.get(aufgabe, MODELL_HAUPT)
-        if modell in ERSCHOEPFT:
+        if tarif == "frei" and modell in ERSCHOEPFT:
             modell = MODELL_LEICHT
         try:
-            resp = _gemini().models.generate_content(model=modell, contents=prompt, config=config)
-            _buche(modell, resp)
+            resp = _gemini(tarif).models.generate_content(model=modell, contents=prompt, config=config)
+            _buche(tarif, modell, resp)
             return json.loads(resp.text)
         except json.JSONDecodeError as ex:
             last_err = ex
@@ -309,13 +344,24 @@ def call_gemini_json(prompt, versuche=4, aufgabe="essay"):
         except Exception as ex:
             last_err = ex
             msg = str(ex)
-            print(f"   API-Hinweis [{modell}] (Versuch {attempt}/{versuche}): {msg[:160]}")
-            if _tageskontingent_erschoepft(msg) and modell != MODELL_LEICHT:
-                print(f"   Tageskontingent von {modell} erschöpft – weiter mit {MODELL_LEICHT}.")
-                ERSCHOEPFT.add(modell)
+            print(f"   API-Hinweis [{tarif}/{modell}] (Versuch {attempt}/{versuche}): {msg[:140]}")
+            if tarif == "frei" and _tageskontingent_erschoepft(msg):
+                if hat_bezahlt:
+                    print("   Free-Tier-Kontingent erschöpft – Rest des Laufs über den bezahlten Schlüssel.")
+                    FREI_GESPERRT = True
+                elif modell != MODELL_LEICHT:
+                    print(f"   Tageskontingent von {modell} erschöpft – weiter mit {MODELL_LEICHT}.")
+                    ERSCHOEPFT.add(modell)
+                else:
+                    time.sleep(30)
                 continue
-            if any(k in msg for k in ("429", "503", "500", "ResourceExhausted", "UNAVAILABLE", "INTERNAL")):
-                time.sleep(attempt * 20)
+            if _ueberlastet(msg) or "429" in msg or "ResourceExhausted" in msg:
+                if tarif == "frei":
+                    ueberlast_frei += 1
+                    if hat_bezahlt and ueberlast_frei >= 2:
+                        print("   Free Tier überlastet – diese Anfrage über den bezahlten Schlüssel.")
+                        continue
+                time.sleep(min(90, attempt * 20))
                 continue
             raise
     raise RuntimeError(f"Gemini dauerhaft nicht erreichbar: {last_err}")
@@ -323,15 +369,16 @@ def call_gemini_json(prompt, versuche=4, aufgabe="essay"):
 
 def nutzungsbericht(datum):
     """Gibt Anfragen, Tokens und geschätzte Kosten aus und hängt sie an data/nutzung.json an."""
-    print("\nNutzung & geschätzte Kosten (Listenpreise bezahlter Tarif):")
+    print("\nNutzung & Kosten (frei = 0 USD; bezahlt zu Listenpreisen geschätzt):")
     gesamt = 0.0
     zeilen = []
-    for modell, n in NUTZUNG.items():
-        p_ein, p_aus = PREISE.get(modell, (0, 0))
+    for schluessel, n in NUTZUNG.items():
+        tarif, modell = schluessel.split("/", 1)
+        p_ein, p_aus = (0, 0) if tarif == "frei" else PREISE.get(modell, (0, 0))
         kosten = n["eingabe"] / 1e6 * p_ein + (n["ausgabe"] + n["thinking"]) / 1e6 * p_aus
         gesamt += kosten
-        zeilen.append({"modell": modell, **n, "kosten_usd": round(kosten, 4)})
-        print(f"   {modell}: {n['anfragen']} Anfragen, {n['eingabe']:,} Eingabe-, {n['ausgabe']:,} Ausgabe-, "
+        zeilen.append({"tarif": tarif, "modell": modell, **n, "kosten_usd": round(kosten, 4)})
+        print(f"   {tarif:8s} {modell}: {n['anfragen']} Anfragen, {n['eingabe']:,} Eingabe-, {n['ausgabe']:,} Ausgabe-, "
               f"{n['thinking']:,} Thinking-Tokens ≈ {kosten:.3f} USD")
     print(f"   Summe ≈ {gesamt:.3f} USD/Tag ≈ {gesamt * 30:.2f} USD/Monat")
     pfad = os.path.join(DATA_DIR, "nutzung.json")
@@ -906,6 +953,7 @@ def main():
         "erzeugt": jetzt.isoformat(timespec="minutes"),
         "modell": MODEL_NAME,
         "modelle": sorted(NUTZUNG.keys()),
+        "tarife": TARIFE,
         "ressorts": [{"id": r["id"], "name": r["name"]} for r in RESSORTS],
         "artikel": artikel,
     }
