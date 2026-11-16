@@ -420,6 +420,9 @@
       .colophon-links { align-items: flex-start; }
       .legal-inner { padding: 1.6rem; }
     }
+    .feedback-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+    .feedback-actions .ui-btn { flex: 1 1 12rem; }
+
     /* ---------- Smartphone-Bedienung ---------- */
     .mobile-only { display: none !important; }
     .menu-grid { display: flex; flex-direction: column; margin-top: 0.4rem; }
@@ -579,7 +582,7 @@
       <a href="archiv.html" data-i18n="archive">Archiv</a>
       <a href="themen/index.html" data-i18n="dossiers">Dossiers</a>
       <a href="feed.xml">RSS-Feed</a>
-      <a href="mailto:konstantin.radiologie@gmail.com?subject=Feedback%20zum%20Korrespondenten" data-i18n="feedback">Feedback geben</a>
+      <a href="mailto:konstantin.radiologie@gmail.com?subject=Feedback%20zum%20Korrespondenten" onclick="openFeedback(); return false;" data-i18n="feedback">Feedback geben</a>
       <a href="#impressum" onclick="openLegalModal(); return false;" data-i18n="legal">Impressum & Datenschutz</a>
     </div>
   </footer>
@@ -663,7 +666,7 @@
       <button type="button" onclick="closeSheets(); openRessortSheet()" data-i18n="chooseSections">Ressorts wählen</button>
       <a href="archiv.html" data-i18n="archive">Archiv</a>
       <a href="themen/index.html" data-i18n="dossiers">Dossiers</a>
-      <a href="mailto:konstantin.radiologie@gmail.com?subject=Feedback%20zum%20Korrespondenten" data-i18n="feedback">Feedback geben</a>
+      <a href="mailto:konstantin.radiologie@gmail.com?subject=Feedback%20zum%20Korrespondenten" onclick="openFeedback(); return false;" data-i18n="feedback">Feedback geben</a>
       <a href="#impressum" onclick="closeSheets(); openLegalModal(); return false;" data-i18n="legal">Impressum & Datenschutz</a>
     </nav>
   </div>
@@ -703,6 +706,20 @@
     <button type="button" class="bb-btn bb-aa" onclick="openSheet('textSheet')" aria-label="Schriftgröße und Abendmodus">Aa</button>
   </nav>
 
+  <!-- Feedback -->
+  <div class="sheet" id="feedbackSheet" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+    <div class="sheet-handle"></div>
+    <h2 id="feedbackTitle" data-i18n="feedbackTitle">Ihre Meinung zählt</h2>
+    <p data-i18n="feedbackText">Was lesen Sie gern, was überspringen Sie, was fehlt? Jede Rückmeldung hilft, den Korrespondenten besser zu machen.</p>
+    <p style="margin-top:0.9rem; font-family:var(--font-ui); font-size:0.95rem;"><strong>konstantin.radiologie@gmail.com</strong></p>
+    <div class="feedback-actions">
+      <a class="ui-btn big" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=konstantin.radiologie@gmail.com&amp;su=Feedback%20zum%20Korrespondenten" target="_blank" rel="noopener noreferrer" data-i18n="feedbackGmail">In Gmail schreiben</a>
+      <a class="ui-btn big" href="mailto:konstantin.radiologie@gmail.com?subject=Feedback%20zum%20Korrespondenten" data-i18n="feedbackMail">E-Mail-Programm öffnen</a>
+      <button class="ui-btn big" type="button" onclick="copyFeedbackAddress()" data-i18n="feedbackCopy">Adresse kopieren</button>
+    </div>
+    <div class="sheet-actions"><span></span><button class="ui-btn" type="button" onclick="closeSheets()" data-i18n="close">Schließen</button></div>
+  </div>
+
   <div class="toast" id="toast" role="status"></div>
 
   <script>
@@ -728,7 +745,9 @@
         fcLog: n => `Prüfprotokoll des Faktenchecks (${n})`, next: 'Nächster Essay', back: 'Zurück zum ersten Essay',
         swipe: '← Wischen für den nächsten Essay →', noEn: 'This essay is only available in German.',
         previously: 'Fortsetzung', readTime: 'Min. Lesezeit', minRead: 'Min. Lesezeit', staticPage: 'Einzelseite',
-        feedback: 'Feedback geben', editionLabel: 'Ausgabe', languageLabel: 'Sprache', textSizeLabel: 'Schriftgröße', themeLabel: 'Abendmodus',
+        feedback: 'Feedback geben', feedbackTitle: 'Ihre Meinung zählt', feedbackGmail: 'In Gmail schreiben', feedbackMail: 'E-Mail-Programm öffnen', feedbackCopy: 'Adresse kopieren',
+        feedbackText: 'Was lesen Sie gern, was überspringen Sie, was fehlt? Jede Rückmeldung hilft, den Korrespondenten besser zu machen.',
+        editionLabel: 'Ausgabe', languageLabel: 'Sprache', textSizeLabel: 'Schriftgröße', themeLabel: 'Abendmodus',
         noAudio: 'Ihr Browser unterstützt keine Sprachausgabe.', audioPlaying: 'Vorlesen läuft …', sundayNote: 'Wochenrückblick'
       },
       en: {
@@ -749,7 +768,9 @@
         fcLog: n => `Fact-check log (${n})`, next: 'Next essay', back: 'Back to the first essay',
         swipe: '← Swipe for the next essay →', noEn: 'This essay is only available in German.',
         previously: 'Follow-up', readTime: 'min read', minRead: 'min read', staticPage: 'Single page',
-        feedback: 'Send feedback', editionLabel: 'Edition', languageLabel: 'Language', textSizeLabel: 'Text size', themeLabel: 'Night mode',
+        feedback: 'Send feedback', feedbackTitle: 'Your opinion matters', feedbackGmail: 'Write in Gmail', feedbackMail: 'Open mail app', feedbackCopy: 'Copy address',
+        feedbackText: 'What do you enjoy, what do you skip, what is missing? Every reply helps make the Correspondent better.',
+        editionLabel: 'Edition', languageLabel: 'Language', textSizeLabel: 'Text size', themeLabel: 'Night mode',
         noAudio: 'Your browser does not support speech output.', audioPlaying: 'Reading aloud …', sundayNote: 'Week in review'
       }
     };
@@ -797,6 +818,7 @@
     }
 
     async function init() {
+      const startHash = location.hash;
       lang = new URLSearchParams(location.search).get('lang') || store.get('lang', 'de');
       if (!I18N[lang]) lang = 'de';
       applyTextSize();
@@ -815,7 +837,8 @@
       applyLang(false);
       showEdition(route ? route.slug : null);
       loadArchiveIndex();
-      if (location.hash === '#impressum') openLegalModal();
+      if (startHash === '#impressum') openLegalModal();
+      if (startHash === '#feedback') openFeedback();
     }
 
     function parseRoute() {
@@ -1331,6 +1354,12 @@
     // =====================================================================
     // Sonstiges
     // =====================================================================
+    function openFeedback() { openSheet('feedbackSheet'); }
+    async function copyFeedbackAddress() {
+      try { await navigator.clipboard.writeText('konstantin.radiologie@gmail.com'); toast(t('linkCopied').replace('Link', 'Adresse')); }
+      catch (e) { prompt('E-Mail:', 'konstantin.radiologie@gmail.com'); }
+    }
+
     function openLegalModal() { document.getElementById('legalModal').classList.add('open'); }
     function closeLegalModal() {
       document.getElementById('legalModal').classList.remove('open');
