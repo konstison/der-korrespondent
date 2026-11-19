@@ -314,7 +314,13 @@ def _tageskontingent_erschoepft(msg):
 
 
 def _ueberlastet(msg):
-    return any(k in msg for k in ("503", "500", "UNAVAILABLE", "INTERNAL", "overloaded", "high demand"))
+    """Vorübergehende Störungen: Überlastung, Serverfehler, abgebrochene oder hängende Verbindungen."""
+    m = msg.lower()
+    return any(k in m for k in (
+        "503", "500", "502", "504", "unavailable", "internal", "overloaded", "high demand",
+        "disconnected", "timed out", "timeout", "connection", "remoteprotocolerror", "reset by peer",
+        "broken pipe", "eof occurred", "temporarily",
+    ))
 
 
 def call_gemini_json(prompt, versuche=5, aufgabe="essay"):
@@ -906,6 +912,11 @@ def main():
     mit_glosse = os.environ.get("GLOSSE", "1") != "0"
     print(f"Modus: {'Advanced' if advanced else 'Kompakt'} (Englisch: {'ja' if mit_englisch else 'nein'}, Glosse: {'ja' if mit_glosse else 'nein'})")
 
+    # Zweiter Versuch am Morgen: nur arbeiten, wenn die heutige Ausgabe noch fehlt
+    if os.environ.get("NUR_WENN_FEHLT") == "1" and os.path.exists(os.path.join(ARCHIV_DIR, f"{heute}.json")):
+        print("Heutige Ausgabe existiert bereits – nichts zu tun.")
+        return
+
     items = fetch_rss_headlines()
     if len(items) < 20:
         sys.exit("Zu wenige Meldungen – Ausgabe wird nicht erzeugt (alte Ausgabe bleibt bestehen).")
@@ -922,13 +933,20 @@ def main():
                 return float(t.get("gewicht", 0))
             except (TypeError, ValueError):
                 return 0.0
-        themen = sorted(themen, key=_gewicht, reverse=True)[:STANDARD_ANZAHL]
-    themen.sort(key=lambda t: reihenfolge[t["ressort"]])
+        themen = sorted(themen, key=_gewicht, reverse=True)  # Rest dient als Reserve, falls ein Essay ausfällt
+        ziel = STANDARD_ANZAHL
+    else:
+        themen.sort(key=lambda t: reihenfolge[t["ressort"]])
+        ziel = len(themen)
     print(f"   {len(themen)} Themen: " + "; ".join(f"{t['ressort']}: {t['thema']}" for t in themen))
     pause()
 
     artikel, slugs = [], set()
     for nr, topic in enumerate(themen, start=1):
+        if len(artikel) >= ziel:
+            break
+        if nr > ziel:
+            print("   (Reserve-Thema, weil ein Essay ausgefallen ist)")
         rid = topic["ressort"]
         print(f"3. [{ressort_name[rid]}] {topic.get('thema')}")
         idx = [i for i in topic.get("quellen", []) if isinstance(i, int) and 0 <= i < len(items)]
@@ -964,9 +982,13 @@ def main():
         print(f"   {a['woerter']} Wörter, {len(a['weltspiegel'])} Weltspiegel-Stimmen")
         artikel.append(a)
 
-    if len(artikel) < 4:
+    # Im Kompakt-Modus wieder in Ressort-Reihenfolge bringen
+    if not advanced:
+        artikel.sort(key=lambda a: reihenfolge.get(a["ressort"], 99))
+    mindestens = 4 if advanced else 3
+    if len(artikel) < mindestens:
         nutzungsbericht(heute)
-        sys.exit(f"Nur {len(artikel)} Essays erzeugt – Ausgabe wird nicht veröffentlicht.")
+        sys.exit(f"Nur {len(artikel)} Essays erzeugt (mindestens {mindestens} nötig) – Ausgabe wird nicht veröffentlicht.")
 
     # Sonntag: Wochenrückblick aus den Essays Montag–Samstag
     if jetzt.weekday() == 6:
