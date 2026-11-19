@@ -178,7 +178,38 @@ def _robots_erlaubt(url):
             rp = None  # robots.txt nicht lesbar -> vorsichtshalber kein Volltext
         _robots_cache[basis] = rp
     rp = _robots_cache[basis]
-    return bool(rp and rp.can_fetch(USER_AGENT, url))
+    # Wer Google-Extended (KI-Nutzung durch Google) aussperrt, widerspricht der Verwendung in Gemini –
+    # das respektieren wir ebenfalls, zumal Eingaben im Free Tier zur Produktverbesserung genutzt werden.
+    return bool(rp and rp.can_fetch(USER_AGENT, url) and rp.can_fetch("Google-Extended", url))
+
+
+_tdmrep_cache = {}
+
+
+def _tdm_vorbehalt_domain(url):
+    """TDMRep (/.well-known/tdmrep.json): maschinenlesbarer Nutzungsvorbehalt nach § 44b UrhG."""
+    teile = urllib.parse.urlsplit(url)
+    basis = f"{teile.scheme}://{teile.netloc}"
+    if basis not in _tdmrep_cache:
+        regeln = []
+        try:
+            req = urllib.request.Request(basis + "/.well-known/tdmrep.json", headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                daten = json.loads(resp.read(200_000).decode("utf-8", "ignore"))
+            if isinstance(daten, list):
+                regeln = [d for d in daten if isinstance(d, dict)]
+        except Exception:
+            pass
+        _tdmrep_cache[basis] = regeln
+    pfad = teile.path or "/"
+    for r in _tdmrep_cache[basis]:
+        ort = str(r.get("location", "/")).rstrip("*")
+        if pfad.startswith(ort or "/") and str(r.get("tdm-reservation", "0")) == "1":
+            return True
+    return False
+
+
+_TDM_META = re.compile(r'<meta[^>]+name=["\']tdm-reservation["\'][^>]+content=["\']1["\']', re.I)
 
 
 class _AbsatzParser(HTMLParser):
@@ -213,13 +244,18 @@ class _AbsatzParser(HTMLParser):
 
 
 def fetch_volltext(url):
-    if not _robots_erlaubt(url):
+    """Lädt den Artikeltext nur, wenn weder robots.txt noch ein TDM-Nutzungsvorbehalt dagegen sprechen."""
+    if not _robots_erlaubt(url) or _tdm_vorbehalt_domain(url):
         return ""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "de,en;q=0.8"})
         with urllib.request.urlopen(req, timeout=15) as resp:
+            if str(resp.headers.get("tdm-reservation", "")).strip() == "1":
+                return ""
             charset = resp.headers.get_content_charset() or "utf-8"
             html = resp.read(2_000_000).decode(charset, "ignore")
+        if _TDM_META.search(html):
+            return ""
         parser = _AbsatzParser()
         parser.feed(html)
         text = "\n".join(parser.absaetze)

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Der Korrespondent — Tagesblatt für Analyse, Geschichte & Weltspiegel</title>
+  <meta name="ai-generated" content="true">
   <meta name="description" content="Analytische Essays zur Lage der Gegenwart – historisch geerdet, europäisch gedacht. Jeden Morgen neu, mit internationaler Presseschau.">
 
   <!-- Vorschau beim Teilen (Messenger, Social Media) -->
@@ -215,6 +216,10 @@
       display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.75rem;
       font-family: var(--font-ui); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
       color: var(--accent); font-weight: 600; margin-bottom: 0.85rem;
+    }
+    .ai-badge {
+      color: var(--ink-secondary); text-transform: none; letter-spacing: 0.02em; font-weight: 500;
+      border: 1px solid var(--border-hairline); border-radius: 2px; padding: 0.05rem 0.45rem; font-size: 0.68rem;
     }
     .fc-badge {
       color: var(--ok); text-transform: none; letter-spacing: 0.02em; font-weight: 500;
@@ -620,6 +625,8 @@
       Hofmannstraße 66<br>
       81370 München<br>
       E-Mail: <a href="mailto:konstantin.radiologie@gmail.com">konstantin.radiologie@gmail.com</a></p>
+      <p><strong>Verantwortlich i. S. d. § 18 Abs. 2 MStV:</strong><br>
+      Konstantin Peucker, Anschrift wie oben</p>
 
       <h3>Redaktionelle Verantwortung & Entstehung der Inhalte</h3>
       <p>Die Essays werden automatisiert mit Hilfe künstlicher Intelligenz (Google Gemini) auf Basis öffentlich zugänglicher Nachrichtenquellen erstellt und anschließend automatisiert gegen diese Quellen geprüft. Trotz dieser Prüfung können Fehler nicht ausgeschlossen werden. Die verwendeten Quellen sind unter jedem Essay aufgeführt.</p>
@@ -746,6 +753,7 @@
         fcLog: n => `Prüfprotokoll des Faktenchecks (${n})`, next: 'Nächster Essay', back: 'Zurück zum ersten Essay',
         swipe: '← Wischen für den nächsten Essay →', noEn: 'This essay is only available in German.',
         previously: 'Fortsetzung', readTime: 'Min. Lesezeit', minRead: 'Min. Lesezeit', staticPage: 'Einzelseite',
+        aiLabel: 'KI-erstellt', aiTitle: 'Dieser Essay wurde mit künstlicher Intelligenz (Google Gemini) auf Basis der genannten Quellen erstellt und automatisch faktengeprüft – ohne menschliche Redaktion.',
         feedback: 'Feedback geben', feedbackTitle: 'Ihre Meinung zählt', feedbackGmail: 'In Gmail schreiben', feedbackMail: 'E-Mail-Programm öffnen', feedbackCopy: 'Adresse kopieren',
         feedbackText: 'Was lesen Sie gern, was überspringen Sie, was fehlt? Jede Rückmeldung hilft, den Korrespondenten besser zu machen.',
         editionLabel: 'Ausgabe', languageLabel: 'Sprache', textSizeLabel: 'Schriftgröße', themeLabel: 'Abendmodus',
@@ -769,6 +777,7 @@
         fcLog: n => `Fact-check log (${n})`, next: 'Next essay', back: 'Back to the first essay',
         swipe: '← Swipe for the next essay →', noEn: 'This essay is only available in German.',
         previously: 'Follow-up', readTime: 'min read', minRead: 'min read', staticPage: 'Single page',
+        aiLabel: 'AI-generated', aiTitle: 'This essay was written by artificial intelligence (Google Gemini) from the sources listed and fact-checked automatically – without human editing.',
         feedback: 'Send feedback', feedbackTitle: 'Your opinion matters', feedbackGmail: 'Write in Gmail', feedbackMail: 'Open mail app', feedbackCopy: 'Copy address',
         feedbackText: 'What do you enjoy, what do you skip, what is missing? Every reply helps make the Correspondent better.',
         editionLabel: 'Edition', languageLabel: 'Language', textSizeLabel: 'Text size', themeLabel: 'Night mode',
@@ -1014,7 +1023,7 @@
       const figureHtml = art.bild && art.bild.url ? `
         <figure class="hero-figure">
           <img src="${esc(art.bild.url)}" alt="${esc(art.bild.beschreibung || '')}" loading="lazy" onerror="this.closest('figure').remove()">
-          <figcaption><span>${esc(art.bild.beschreibung || '')}</span><span>${esc(art.bild.lizenz || '')}</span></figcaption>
+          <figcaption><span>${esc(art.bild.beschreibung || '')}</span><span>${art.bild.quelle ? `<a href="${esc(art.bild.quelle)}" target="_blank" rel="noopener noreferrer" style="color:inherit;">${esc(art.bild.lizenz || 'Wikimedia Commons')}</a>` : esc(art.bild.lizenz || '')}</span></figcaption>
         </figure>` : '';
 
       const kurz = v.kurzfassung && v.kurzfassung.length ? `
@@ -1036,7 +1045,6 @@
               const tx = wsText[i] || item;
               return `<div class="press-item">
                 <div class="press-meta">${esc(item.medium)} · ${esc(tx.tenor || item.tenor)}</div>
-                ${item.titel_original ? `<p class="press-original">„${esc(item.titel_original)}“</p>` : ''}
                 <p class="press-summary">${esc(tx.zusammenfassung || item.zusammenfassung)}</p>
                 <a class="press-link" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${t('toOriginal')}</a>
               </div>`;
@@ -1076,6 +1084,7 @@
           <div class="article-rubrik-row">
             <span>${esc(v.rubrik)}</span>
             ${minutes ? `<span>&bull;</span><span>${minutes[0]} ${t('minRead')}</span>` : ''}
+            <span class="ai-badge" title="${esc(t('aiTitle'))}">${t('aiLabel')}</span>
             ${fcHtml}
           </div>
           <h1 class="article-headline">${esc(v.titel)}</h1>

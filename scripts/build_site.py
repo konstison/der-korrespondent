@@ -118,6 +118,7 @@ def kopf(titel, beschreibung, rel, kanonisch, bild=None, typ="website", lang="de
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{esc(titel)}</title>
   <meta name="description" content="{esc(beschreibung)}">
+  <meta name="ai-generated" content="true">
   <link rel="canonical" href="{esc(kanonisch)}">{alt}
   <meta property="og:site_name" content="Der Korrespondent">
   <meta property="og:type" content="{typ}">
@@ -206,11 +207,15 @@ def essay_seite(e, en=False):
                    else f" · Faktengeprüft gegen {fc.get('quellen', '')} Quellen, {n} Korrektur{'en' if n != 1 else ''}")
     other = (f'<a href="../../{pfad_de(e)}">Deutsche Fassung</a>' if en
              else (f'<a href="../../{pfad_en(e)}">English version</a>' if e.get("en") else ""))
-    teile.append(f'<div class="meta-line">{"Edition of" if en else "Ausgabe vom"} {esc(datum_lang(e["_datum"], en))}{fc_text}{" · " + other if other else ""}</div>')
+    ki = "AI-generated" if en else "KI-erstellt"
+    teile.append(f'<div class="meta-line"><strong>{ki}</strong> · {"Edition of" if en else "Ausgabe vom"} {esc(datum_lang(e["_datum"], en))}{fc_text}{" · " + other if other else ""}</div>')
     if bild:
         b = e["bild"]
+        lizenz = esc(b.get("lizenz") or "Wikimedia Commons")
+        if b.get("quelle"):
+            lizenz = f'<a href="{esc(b["quelle"])}" target="_blank" rel="noopener noreferrer" style="color:inherit;">{lizenz}</a>'
         teile.append(f'<figure class="hero"><img onerror="this.parentNode.remove()" src="{esc(bild)}" alt="{esc(b.get("beschreibung", ""))}" loading="lazy">'
-                     f'<figcaption>{esc(b.get("lizenz", ""))}</figcaption></figure>')
+                     f'<figcaption>{lizenz}</figcaption></figure>')
     if v.get("kurzfassung"):
         teile.append(f'<div class="kurzfassung"><strong>{"In brief" if en else "In Kürze"}</strong><ul>'
                      + "".join(f"<li>{esc(k)}</li>" for k in v["kurzfassung"]) + "</ul></div>")
@@ -370,7 +375,7 @@ def rss(essays):
     <title>Der Korrespondent</title>
     <link>{SITE_URL}/</link>
     <atom:link href="{SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>
-    <description>Analytische Essays zur Lage der Gegenwart – historisch geerdet, europäisch gedacht.</description>
+    <description>KI-erstellte, automatisch faktengeprüfte Essays zur Lage der Gegenwart – historisch geerdet, europäisch gedacht.</description>
     <language>de-de</language>
     <lastBuildDate>{jetzt}</lastBuildDate>
 {chr(10).join(items)}
