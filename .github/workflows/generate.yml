@@ -4,6 +4,8 @@ on:
   schedule:
     # 04:15 UTC = 05:15 Uhr MEZ / 06:15 Uhr MESZ
     - cron: '15 4 * * *'
+    # 07:15 UTC = 08:15 Uhr MEZ: zweiter Versuch, nur falls die Ausgabe um 05:15 fehlgeschlagen ist
+    - cron: '15 7 * * *'
   workflow_dispatch: # manueller Start über den Actions-Tab
     inputs:
       schluessel:
@@ -52,6 +54,7 @@ jobs:
           GEMINI_API_KEY_FREE: ${{ secrets.GEMINI_API_KEY_FREE }}
           SCHLUESSEL: ${{ inputs.schluessel || vars.SCHLUESSEL || 'automatisch' }}
           MODUS: ${{ inputs.modus || vars.MODUS || 'kompakt' }}
+          NUR_WENN_FEHLT: ${{ github.event.schedule == '15 7 * * *' && '1' || '0' }}
         run: python scripts/generate_edition.py
 
       - name: Statische Seiten bauen (Essays, Archiv, Dossiers, Feed, Sitemap)
