@@ -568,20 +568,21 @@ Antworte als reines JSON:
 
 STIL = """
 STIL UND INHALT:
-- KLARHEIT VOR GLANZ: Anspruchsvoll im Gedanken, geradlinig in der Sprache – wie ein guter Leitartikel einer
-  überregionalen Tageszeitung, nicht wie ein Aufsatz in einer Fachzeitschrift. Jeder Satz muss beim ersten Lesen
-  verständlich sein.
-  · Ein Gedanke pro Satz. Satzlänge meist 12–22 Wörter, selten über 30; keine Schachtelsätze mit mehreren
-    eingeschobenen Nebensätzen.
-  · Verben statt Nominalstil („die Regierung entscheidet“ statt „es erfolgt die Entscheidungsfindung“); keine
-    Genitivketten, keine gestelzten Füllwörter („gleichsam“, „mithin“, „vermag“, „ebenjene“, „ihrerseits“).
-  · Fachbegriffe sind erwünscht, wo sie präzise sind – beim ersten Auftreten kurz erklärt, wenn nicht allgemein
-    bekannt. Kein Fremdwort, wo ein deutsches Wort dasselbe genauso gut sagt.
-  · Bilder und Vergleiche sparsam: höchstens einer pro Kapitel und nur, wenn er etwas klarer macht. Keine Metaphern-
-    Kaskaden, keine rhetorischen Fragen in Serie, kein Pathos, kein reißerischer Jargon.
-  · Konkret statt abstrakt: Wer tut was, mit welcher Folge? Zahlen, Namen, Beispiele aus den Quellen.
-  · Prüfe vor der Antwort jeden Absatz: Würde eine gebildete Leserin ihn beim Frühstück auf Anhieb verstehen?
-    Wenn nicht, schreibe ihn einfacher.
+- TON: Gehobene, kultivierte Prosa einer anspruchsvollen überregionalen Tageszeitung – gedanklich dicht und
+  sprachlich gepflegt, aber nie verschwurbelt. Der Leser soll Freude am Stil haben UND jeden Satz beim ersten
+  Lesen verstehen. Nicht Fachzeitschrift, nicht Nachrichtenagentur, sondern der gute Leitartikel dazwischen.
+  · Rhythmus statt Einheitslänge: Kurze, pointierte Sätze wechseln mit längeren, gut gebauten Satzgefügen.
+    Ein Nebensatz ist willkommen, zwei verschachtelte Einschübe sind zu viel. Richtwert: meist 15–25 Wörter,
+    gelegentlich bis etwa 35, wenn der Satz klar gegliedert bleibt.
+  · Gehobener Wortschatz und Fachbegriffe sind erwünscht, wo sie präzise sind; wenig bekannte Begriffe werden
+    beim ersten Auftreten beiläufig erklärt. Kein Fremdwort nur um des Klanges willen.
+  · Verben tragen den Satz; vermeide Nominalketten, Genitivkaskaden und gestelzte Füllwörter
+    („gleichsam“, „mithin“, „ebenjene“, „vermag“).
+  · Bilder und Vergleiche dürfen glänzen – ein, höchstens zwei pro Kapitel, und nur, wenn sie etwas erhellen.
+    Kein Bild auf ein Bild, keine Metaphern-Kaskaden, kein Pathos, keine rhetorischen Fragen in Serie.
+  · Abstraktes immer erden: Wer handelt, was folgt daraus? Zahlen, Namen und Beispiele aus den Quellen.
+  · Selbstprüfung jedes Absatzes: Versteht eine gebildete Leserin ihn ohne zweites Lesen? Klingt er dabei
+    noch nach Feuilleton und nicht nach Pressemitteilung? Beides muss stimmen.
 - HUMOR: Der Essay bleibt analytisch und auf höchstem sprachlichem Niveau, trägt aber eine feine humoristische
   Note – trockene Ironie, Understatement, die elegant gesetzte Pointe, das treffende Paradox; in der Tradition
   großer Feuilletonisten (Tucholsky, Kästner, Polgar), nie in der des Kabaretts.
@@ -613,7 +614,7 @@ Knüpfe an diesen Essay an: Was ist seither neu? Erwähne ihn einmal ausdrückli
 <a href="{bezug['pfad']}">wie wir am {datum_de_kurz(bezug['datum'])} schrieben</a> (Formulierung frei).
 """
     prompt = f"""
-Du bist ein erfahrener, nüchterner Autor einer europäischen Qualitätszeitung (klar und anspruchsvoll, gut lesbar),
+Du bist ein erfahrener, nüchterner Autor einer europäischen Qualitätszeitung (gehoben, aber auf Anhieb verständlich),
 Ressort „{ressort_name}“. Schreibe einen tiefgründigen, sachlich fundierten Essay zum Thema: {topic.get('thema')}
 
 UMFANG: mindestens 1.500 Wörter Fließtext (ohne Überschriften). Das ist eine harte Vorgabe.
