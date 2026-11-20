@@ -59,13 +59,13 @@
       {
         "tarif": "bezahlt",
         "modell": "gemini-3.8-flash",
-        "anfragen": 15,
-        "eingabe": 72910,
-        "ausgabe": 46742,
-        "thinking": 37323,
-        "kosten_usd": 0.185
+        "anfragen": 13,
+        "eingabe": 59912,
+        "ausgabe": 40853,
+        "thinking": 31458,
+        "kosten_usd": 0.1581
       }
     ],
-    "summe_usd": 0.185
+    "summe_usd": 0.1581
   }
 ]
