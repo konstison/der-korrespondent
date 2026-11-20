@@ -52,5 +52,20 @@
       }
     ],
     "summe_usd": 0.1902
+  },
+  {
+    "datum": "2026-11-20",
+    "modelle": [
+      {
+        "tarif": "frei",
+        "modell": "gemini-3.8-flash",
+        "anfragen": 13,
+        "eingabe": 56922,
+        "ausgabe": 42544,
+        "thinking": 33231,
+        "kosten_usd": 0.0
+      }
+    ],
+    "summe_usd": 0.0
   }
 ]
