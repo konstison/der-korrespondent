@@ -568,7 +568,20 @@ Antworte als reines JSON:
 
 STIL = """
 STIL UND INHALT:
-- Elegant, präzise, ohne Pathos, ohne Metaphern-Kaskaden, ohne reißerischen Jargon.
+- KLARHEIT VOR GLANZ: Anspruchsvoll im Gedanken, geradlinig in der Sprache – wie ein guter Leitartikel einer
+  überregionalen Tageszeitung, nicht wie ein Aufsatz in einer Fachzeitschrift. Jeder Satz muss beim ersten Lesen
+  verständlich sein.
+  · Ein Gedanke pro Satz. Satzlänge meist 12–22 Wörter, selten über 30; keine Schachtelsätze mit mehreren
+    eingeschobenen Nebensätzen.
+  · Verben statt Nominalstil („die Regierung entscheidet“ statt „es erfolgt die Entscheidungsfindung“); keine
+    Genitivketten, keine gestelzten Füllwörter („gleichsam“, „mithin“, „vermag“, „ebenjene“, „ihrerseits“).
+  · Fachbegriffe sind erwünscht, wo sie präzise sind – beim ersten Auftreten kurz erklärt, wenn nicht allgemein
+    bekannt. Kein Fremdwort, wo ein deutsches Wort dasselbe genauso gut sagt.
+  · Bilder und Vergleiche sparsam: höchstens einer pro Kapitel und nur, wenn er etwas klarer macht. Keine Metaphern-
+    Kaskaden, keine rhetorischen Fragen in Serie, kein Pathos, kein reißerischer Jargon.
+  · Konkret statt abstrakt: Wer tut was, mit welcher Folge? Zahlen, Namen, Beispiele aus den Quellen.
+  · Prüfe vor der Antwort jeden Absatz: Würde eine gebildete Leserin ihn beim Frühstück auf Anhieb verstehen?
+    Wenn nicht, schreibe ihn einfacher.
 - HUMOR: Der Essay bleibt analytisch und auf höchstem sprachlichem Niveau, trägt aber eine feine humoristische
   Note – trockene Ironie, Understatement, die elegant gesetzte Pointe, das treffende Paradox; in der Tradition
   großer Feuilletonisten (Tucholsky, Kästner, Polgar), nie in der des Kabaretts.
@@ -600,7 +613,7 @@ Knüpfe an diesen Essay an: Was ist seither neu? Erwähne ihn einmal ausdrückli
 <a href="{bezug['pfad']}">wie wir am {datum_de_kurz(bezug['datum'])} schrieben</a> (Formulierung frei).
 """
     prompt = f"""
-Du bist ein erfahrener, nüchterner Autor einer europäischen Qualitätszeitung (Stil: NZZ / FAZ),
+Du bist ein erfahrener, nüchterner Autor einer europäischen Qualitätszeitung (klar und anspruchsvoll, gut lesbar),
 Ressort „{ressort_name}“. Schreibe einen tiefgründigen, sachlich fundierten Essay zum Thema: {topic.get('thema')}
 
 UMFANG: mindestens 1.500 Wörter Fließtext (ohne Überschriften). Das ist eine harte Vorgabe.
@@ -654,7 +667,7 @@ Material (Themen dieser Ausgabe):
 
 def write_wochenrueckblick(woche):
     prompt = f"""
-Du bist Chefredakteur einer europäischen Qualitätszeitung (Stil: NZZ / FAZ) und schreibst den
+Du bist Chefredakteur einer europäischen Qualitätszeitung (klar und anspruchsvoll, gut lesbar) und schreibst den
 sonntäglichen Wochenrückblick „Die Woche“. Grundlage sind ausschließlich die Essays dieser Woche (unten).
 
 AUFGABE: Kein Nacherzählen der einzelnen Essays, sondern eine übergreifende Deutung:
